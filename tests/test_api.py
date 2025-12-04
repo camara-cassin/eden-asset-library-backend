@@ -9,6 +9,8 @@ from sqlalchemy.pool import StaticPool
 
 from app.main import app
 from app.db.database import Base, get_db
+from app.models.user import User, UserRole
+from app.core.security import get_password_hash, create_access_token
 
 
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
@@ -37,6 +39,48 @@ async def setup_database():
     yield
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
+
+
+@pytest_asyncio.fixture
+async def test_user():
+    async with TestingSessionLocal() as session:
+        user = User(
+            name="Test User",
+            email="test@example.com",
+            password_hash=get_password_hash("testpassword"),
+            role=UserRole.contributor
+        )
+        session.add(user)
+        await session.commit()
+        await session.refresh(user)
+        return user
+
+
+@pytest_asyncio.fixture
+async def admin_user():
+    async with TestingSessionLocal() as session:
+        user = User(
+            name="Admin User",
+            email="admin@example.com",
+            password_hash=get_password_hash("adminpassword"),
+            role=UserRole.admin
+        )
+        session.add(user)
+        await session.commit()
+        await session.refresh(user)
+        return user
+
+
+@pytest_asyncio.fixture
+async def auth_headers(test_user):
+    token = create_access_token(data={"sub": str(test_user.id), "email": test_user.email, "role": test_user.role.value})
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest_asyncio.fixture
+async def admin_auth_headers(admin_user):
+    token = create_access_token(data={"sub": str(admin_user.id), "email": admin_user.email, "role": admin_user.role.value})
+    return {"Authorization": f"Bearer {token}"}
 
 
 @pytest_asyncio.fixture
@@ -110,9 +154,9 @@ class TestHealthCheck:
 
 class TestCreateAsset:
     @pytest.mark.asyncio
-    async def test_create_asset_minimal(self, client):
+    async def test_create_asset_minimal(self, client, auth_headers):
         """POST /assets creates a draft asset with minimal payload."""
-        response = await client.post("/api/v1/assets", json=MINIMAL_ASSET)
+        response = await client.post("/api/v1/assets", json=MINIMAL_ASSET, headers=auth_headers)
         assert response.status_code == 201
         data = response.json()
         assert data["asset_type"] == "physical"
@@ -121,7 +165,7 @@ class TestCreateAsset:
         assert "asset_id" in data
 
     @pytest.mark.asyncio
-    async def test_create_asset_invalid_type(self, client):
+    async def test_create_asset_invalid_type(self, client, auth_headers):
         """POST /assets rejects invalid asset_type."""
         invalid_asset = {
             "asset_type": "invalid_type",
@@ -130,11 +174,11 @@ class TestCreateAsset:
                 "category": "Energy"
             }
         }
-        response = await client.post("/api/v1/assets", json=invalid_asset)
+        response = await client.post("/api/v1/assets", json=invalid_asset, headers=auth_headers)
         assert response.status_code == 422
 
     @pytest.mark.asyncio
-    async def test_create_asset_missing_name(self, client):
+    async def test_create_asset_missing_name(self, client, auth_headers):
         """POST /assets rejects missing asset_name."""
         invalid_asset = {
             "asset_type": "physical",
@@ -142,11 +186,11 @@ class TestCreateAsset:
                 "category": "Energy"
             }
         }
-        response = await client.post("/api/v1/assets", json=invalid_asset)
+        response = await client.post("/api/v1/assets", json=invalid_asset, headers=auth_headers)
         assert response.status_code == 400
 
     @pytest.mark.asyncio
-    async def test_create_asset_missing_category(self, client):
+    async def test_create_asset_missing_category(self, client, auth_headers):
         """POST /assets rejects missing category."""
         invalid_asset = {
             "asset_type": "physical",
@@ -154,18 +198,18 @@ class TestCreateAsset:
                 "asset_name": "Test"
             }
         }
-        response = await client.post("/api/v1/assets", json=invalid_asset)
+        response = await client.post("/api/v1/assets", json=invalid_asset, headers=auth_headers)
         assert response.status_code == 400
 
 
 class TestUpdateAsset:
     @pytest.mark.asyncio
-    async def test_update_asset_deep_merge(self, client):
+    async def test_update_asset_deep_merge(self, client, auth_headers):
         """PATCH /assets/:id performs deep merge for nested objects."""
-        create_response = await client.post("/api/v1/assets", json=MINIMAL_ASSET)
+        create_response = await client.post("/api/v1/assets", json=MINIMAL_ASSET, headers=auth_headers)
         asset_id = create_response.json()["asset_id"]
         
-        get_response = await client.get("/api/v1/assets")
+        get_response = await client.get("/api/v1/assets", headers=auth_headers)
         items = get_response.json()["items"]
         uuid = items[0]["id"]
         
@@ -179,7 +223,7 @@ class TestUpdateAsset:
             }
         }
         
-        response = await client.patch(f"/api/v1/assets/{uuid}", json=update_data)
+        response = await client.patch(f"/api/v1/assets/{uuid}", json=update_data, headers=auth_headers)
         assert response.status_code == 200
         data = response.json()
         
@@ -192,13 +236,13 @@ class TestUpdateAsset:
 
 class TestGetAsset:
     @pytest.mark.asyncio
-    async def test_get_asset_returns_stored_object(self, client):
+    async def test_get_asset_returns_stored_object(self, client, auth_headers):
         """GET /assets/:id returns the same object that was stored."""
-        create_response = await client.post("/api/v1/assets", json=MINIMAL_ASSET)
+        create_response = await client.post("/api/v1/assets", json=MINIMAL_ASSET, headers=auth_headers)
         assert create_response.status_code == 201
         created_data = create_response.json()
         
-        list_response = await client.get("/api/v1/assets")
+        list_response = await client.get("/api/v1/assets", headers=auth_headers)
         uuid = list_response.json()["items"][0]["id"]
         
         get_response = await client.get(f"/api/v1/assets/{uuid}")
@@ -218,9 +262,9 @@ class TestGetAsset:
 
 class TestListAssets:
     @pytest.mark.asyncio
-    async def test_list_assets_filter_by_type(self, client):
+    async def test_list_assets_filter_by_type(self, client, auth_headers):
         """GET /assets filters by asset_type."""
-        await client.post("/api/v1/assets", json=MINIMAL_ASSET)
+        await client.post("/api/v1/assets", json=MINIMAL_ASSET, headers=auth_headers)
         
         plan_asset = {
             "asset_type": "plan",
@@ -229,18 +273,18 @@ class TestListAssets:
                 "category": "Water"
             }
         }
-        await client.post("/api/v1/assets", json=plan_asset)
+        await client.post("/api/v1/assets", json=plan_asset, headers=auth_headers)
         
-        response = await client.get("/api/v1/assets?asset_type=physical")
+        response = await client.get("/api/v1/assets?asset_type=physical", headers=auth_headers)
         assert response.status_code == 200
         data = response.json()
         assert data["total"] == 1
         assert data["items"][0]["asset_type"] == "physical"
 
     @pytest.mark.asyncio
-    async def test_list_assets_filter_by_category(self, client):
+    async def test_list_assets_filter_by_category(self, client, auth_headers):
         """GET /assets filters by category."""
-        await client.post("/api/v1/assets", json=MINIMAL_ASSET)
+        await client.post("/api/v1/assets", json=MINIMAL_ASSET, headers=auth_headers)
         
         water_asset = {
             "asset_type": "physical",
@@ -249,16 +293,16 @@ class TestListAssets:
                 "category": "Water"
             }
         }
-        await client.post("/api/v1/assets", json=water_asset)
+        await client.post("/api/v1/assets", json=water_asset, headers=auth_headers)
         
-        response = await client.get("/api/v1/assets?category=Energy")
+        response = await client.get("/api/v1/assets?category=Energy", headers=auth_headers)
         assert response.status_code == 200
         data = response.json()
         assert data["total"] == 1
         assert data["items"][0]["basic_information"]["category"] == "Energy"
 
     @pytest.mark.asyncio
-    async def test_list_assets_pagination(self, client):
+    async def test_list_assets_pagination(self, client, auth_headers):
         """GET /assets pagination works correctly."""
         for i in range(5):
             asset = {
@@ -268,9 +312,9 @@ class TestListAssets:
                     "category": "Energy"
                 }
             }
-            await client.post("/api/v1/assets", json=asset)
+            await client.post("/api/v1/assets", json=asset, headers=auth_headers)
         
-        response = await client.get("/api/v1/assets?page=1&page_size=2")
+        response = await client.get("/api/v1/assets?page=1&page_size=2", headers=auth_headers)
         assert response.status_code == 200
         data = response.json()
         assert len(data["items"]) == 2
@@ -281,26 +325,26 @@ class TestListAssets:
 
 class TestSubmitAsset:
     @pytest.mark.asyncio
-    async def test_submit_fails_missing_sections(self, client):
+    async def test_submit_fails_missing_sections(self, client, auth_headers):
         """POST /assets/:id/submit fails if required sections are missing."""
-        create_response = await client.post("/api/v1/assets", json=MINIMAL_ASSET)
+        create_response = await client.post("/api/v1/assets", json=MINIMAL_ASSET, headers=auth_headers)
         
-        list_response = await client.get("/api/v1/assets")
+        list_response = await client.get("/api/v1/assets", headers=auth_headers)
         uuid = list_response.json()["items"][0]["id"]
         
-        response = await client.post(f"/api/v1/assets/{uuid}/submit")
+        response = await client.post(f"/api/v1/assets/{uuid}/submit", headers=auth_headers)
         assert response.status_code == 400
         assert "error" in response.json()["detail"]
 
     @pytest.mark.asyncio
-    async def test_submit_succeeds_with_required_sections(self, client):
+    async def test_submit_succeeds_with_required_sections(self, client, auth_headers):
         """POST /assets/:id/submit succeeds when required sections are present."""
-        create_response = await client.post("/api/v1/assets", json=FULL_PHYSICAL_ASSET)
+        create_response = await client.post("/api/v1/assets", json=FULL_PHYSICAL_ASSET, headers=auth_headers)
         
-        list_response = await client.get("/api/v1/assets")
+        list_response = await client.get("/api/v1/assets", headers=auth_headers)
         uuid = list_response.json()["items"][0]["id"]
         
-        response = await client.post(f"/api/v1/assets/{uuid}/submit")
+        response = await client.post(f"/api/v1/assets/{uuid}/submit", headers=auth_headers)
         assert response.status_code == 200
         data = response.json()
         assert data["system_meta"]["status"] == "under_review"
@@ -309,19 +353,18 @@ class TestSubmitAsset:
 
 class TestApproveAsset:
     @pytest.mark.asyncio
-    async def test_approve_updates_status(self, client):
+    async def test_approve_updates_status(self, client, auth_headers, admin_auth_headers):
         """POST /assets/:id/approve updates status to approved."""
-        create_response = await client.post("/api/v1/assets", json=FULL_PHYSICAL_ASSET)
+        create_response = await client.post("/api/v1/assets", json=FULL_PHYSICAL_ASSET, headers=auth_headers)
         
-        list_response = await client.get("/api/v1/assets")
+        list_response = await client.get("/api/v1/assets", headers=auth_headers)
         uuid = list_response.json()["items"][0]["id"]
         
-        await client.post(f"/api/v1/assets/{uuid}/submit")
+        await client.post(f"/api/v1/assets/{uuid}/submit", headers=auth_headers)
         
         response = await client.post(f"/api/v1/assets/{uuid}/approve", json={
-            "reviewer_id": "admin_1",
             "review_notes": "Looks good"
-        })
+        }, headers=admin_auth_headers)
         assert response.status_code == 200
         data = response.json()
         assert data["system_meta"]["status"] == "approved"
@@ -330,72 +373,70 @@ class TestApproveAsset:
 
 class TestContributorAssets:
     @pytest.mark.asyncio
-    async def test_list_contributor_assets(self, client):
+    async def test_list_contributor_assets(self, client, auth_headers, test_user):
         """GET /contributors/:contributor_id/assets returns only that contributor's assets."""
         asset1 = {
             "asset_type": "physical",
             "basic_information": {"asset_name": "Asset 1", "category": "Energy"},
-            "contributor": {"contributor_id": "user_1"}
         }
         asset2 = {
             "asset_type": "physical",
             "basic_information": {"asset_name": "Asset 2", "category": "Energy"},
-            "contributor": {"contributor_id": "user_2"}
         }
         
-        await client.post("/api/v1/assets", json=asset1)
-        await client.post("/api/v1/assets", json=asset2)
+        await client.post("/api/v1/assets", json=asset1, headers=auth_headers)
+        await client.post("/api/v1/assets", json=asset2, headers=auth_headers)
         
-        response = await client.get("/api/v1/contributors/user_1/assets")
+        response = await client.get(f"/api/v1/contributors/{test_user.id}/assets")
         assert response.status_code == 200
         data = response.json()
-        assert data["total"] == 1
+        assert data["total"] == 2
 
 
 class TestFileAttachment:
     @pytest.mark.asyncio
-    async def test_attach_file_url(self, client):
+    async def test_attach_file_url(self, client, auth_headers):
         """POST /assets/:id/files appends URLs under the chosen documentation field."""
-        create_response = await client.post("/api/v1/assets", json=MINIMAL_ASSET)
+        create_response = await client.post("/api/v1/assets", json=MINIMAL_ASSET, headers=auth_headers)
         
-        list_response = await client.get("/api/v1/assets")
+        list_response = await client.get("/api/v1/assets", headers=auth_headers)
         uuid = list_response.json()["items"][0]["id"]
         
         response = await client.post(f"/api/v1/assets/{uuid}/files", json={
             "target": "cad_file_urls",
             "url": "https://example.com/file.ifc"
-        })
+        }, headers=auth_headers)
         assert response.status_code == 200
         data = response.json()
         assert "https://example.com/file.ifc" in data["documentation_uploads"]["cad_file_urls"]
 
     @pytest.mark.asyncio
-    async def test_attach_file_invalid_target(self, client):
+    async def test_attach_file_invalid_target(self, client, auth_headers):
         """POST /assets/:id/files rejects invalid target."""
-        create_response = await client.post("/api/v1/assets", json=MINIMAL_ASSET)
+        create_response = await client.post("/api/v1/assets", json=MINIMAL_ASSET, headers=auth_headers)
         
-        list_response = await client.get("/api/v1/assets")
+        list_response = await client.get("/api/v1/assets", headers=auth_headers)
         uuid = list_response.json()["items"][0]["id"]
         
         response = await client.post(f"/api/v1/assets/{uuid}/files", json={
             "target": "invalid_target",
             "url": "https://example.com/file.pdf"
-        })
+        }, headers=auth_headers)
         assert response.status_code == 400
 
 
 class TestAIExtract:
     @pytest.mark.asyncio
-    async def test_ai_extract_stub(self, client):
+    async def test_ai_extract_stub(self, client, auth_headers):
         """POST /assets/:id/ai-extract with AI_ENABLED=false updates prefill_status to complete."""
-        create_response = await client.post("/api/v1/assets", json=MINIMAL_ASSET)
+        create_response = await client.post("/api/v1/assets", json=MINIMAL_ASSET, headers=auth_headers)
         
-        list_response = await client.get("/api/v1/assets")
+        list_response = await client.get("/api/v1/assets", headers=auth_headers)
         uuid = list_response.json()["items"][0]["id"]
         
         response = await client.post(f"/api/v1/assets/{uuid}/ai-extract", json={
             "sources": {"use_uploaded_docs": True}
-        })
+        }, headers=auth_headers)
         assert response.status_code == 200
         data = response.json()
         assert data["ai_assistance"]["prefill_status"] == "complete"
