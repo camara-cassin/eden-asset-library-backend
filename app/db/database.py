@@ -61,36 +61,36 @@ async def get_db() -> AsyncSession:
 
 async def init_db():
     """
-    Initialize database connection and seed admin user if configured.
+    Initialize database connection and seed admin user.
     
     NOTE: This function no longer auto-creates tables.
     Use Alembic migrations instead:
         alembic upgrade head
     
-    This function seeds an admin user if INITIAL_ADMIN_EMAIL and 
-    INITIAL_ADMIN_PASSWORD environment variables are set.
+    This function seeds an admin user on startup if one doesn't exist.
+    Uses INITIAL_ADMIN_EMAIL and INITIAL_ADMIN_PASSWORD env vars if set,
+    otherwise uses default admin credentials.
     """
     from sqlalchemy import select
     from app.models.user import User
     from app.core.security import get_password_hash
     
-    # Seed admin user if configured
-    admin_email = settings.INITIAL_ADMIN_EMAIL
-    admin_password = settings.INITIAL_ADMIN_PASSWORD
+    # Default admin credentials (can be overridden by env vars)
+    admin_email = settings.INITIAL_ADMIN_EMAIL or "camara@mastermindingeden.com"
+    admin_password = settings.INITIAL_ADMIN_PASSWORD or "EdenAdmin2024!"
     
-    if admin_email and admin_password:
-        async with async_session_maker() as session:
-            # Check if admin already exists
-            result = await session.execute(select(User).where(User.email == admin_email))
-            existing_admin = result.scalar_one_or_none()
-            
-            if existing_admin is None:
-                admin_user = User(
-                    name="Admin",
-                    email=admin_email,
-                    password_hash=get_password_hash(admin_password),
-                    role="admin",
-                )
-                session.add(admin_user)
-                await session.commit()
-                print(f"Admin user created: {admin_email}")
+    async with async_session_maker() as session:
+        # Check if admin already exists
+        result = await session.execute(select(User).where(User.email == admin_email))
+        existing_admin = result.scalar_one_or_none()
+        
+        if existing_admin is None:
+            admin_user = User(
+                name="Admin",
+                email=admin_email,
+                password_hash=get_password_hash(admin_password),
+                role="admin",
+            )
+            session.add(admin_user)
+            await session.commit()
+            print(f"Admin user created: {admin_email}")
