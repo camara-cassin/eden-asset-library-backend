@@ -1,0 +1,394 @@
+{
+  "physical_asset": {
+    "asset_id": "EDEN-PHY-001",
+    "asset_type": "physical",
+    "system_meta": {
+      "status": "approved",
+      "version": "v1.0",
+      "created_by": "user@example.com",
+      "created_at": "2024-01-15T10:30:00Z",
+      "updated_by": "reviewer@example.com",
+      "updated_at": "2024-02-20T14:45:00Z",
+      "raw_source_text": "Original product documentation",
+      "provenance_notes": "Verified by manufacturer",
+      "internal_reviewer_notes": "Approved for production use"
+    },
+    "ai_assistance": {
+      "prefill_status": "complete",
+      "prefill_message": "Fields populated from product datasheet",
+      "last_run_at": "2024-01-15T10:35:00Z",
+      "sources_used": [
+        {
+          "source_type": "uploaded_document",
+          "source_ref": "product_spec_v2.pdf",
+          "notes": "Main technical specifications"
+        }
+      ],
+      "fields_prefilled": ["basic_information.short_summary", "physical_configuration"]
+    },
+    "basic_information": {
+      "category": "Water Systems",
+      "subcategory": "Filtration",
+      "asset_name": "Solar Water Purifier Pro",
+      "short_summary": "Solar-powered water purification system for off-grid communities",
+      "function_purpose": "Purifies contaminated water using solar energy",
+      "scaling_potential": "regional",
+      "long_description": "A comprehensive solar-powered water purification system designed for deployment in remote communities without access to clean water or reliable electricity.",
+      "company_name": "EcoWater Solutions",
+      "company_phone": "+1-555-123-4567",
+      "company_email": "info@ecowater.example.com",
+      "company_website_url": "https://ecowater.example.com",
+      "creator_name": "Dr. Jane Smith",
+      "creator_organization": "EcoWater Solutions",
+      "creator_email": "jane.smith@ecowater.example.com",
+      "certifications": ["NSF/ANSI 53", "ISO 9001"],
+      "patent_links": ["https://patents.example.com/US12345678"],
+      "year_introduced_or_updated": "2023"
+    },
+    "contributor": {
+      "name": "John Contributor",
+      "email": "john@example.com",
+      "eden_username": "john_eden",
+      "wallet_address": "0x1234567890abcdef",
+      "contributor_id": "CONTRIB-001",
+      "submission_date": "2024-01-10T09:00:00Z",
+      "notes": "Initial submission",
+      "submission_status": "approved",
+      "automated_outreach_status": "details_completed",
+      "agreement_signed": true,
+      "agreement_document_url": "https://docs.example.com/agreement.pdf"
+    },
+    "overview": {
+      "photos": ["https://images.example.com/product1.jpg", "https://images.example.com/product2.jpg"],
+      "key_features": ["Solar powered", "No electricity required", "Low maintenance"],
+      "intended_use_cases": ["Rural communities", "Emergency relief", "Off-grid installations"],
+      "asset_type_description": "Physical water purification unit"
+    },
+    "documentation_uploads": {
+      "technical_spec_sheet_url": "https://docs.example.com/specs.pdf",
+      "product_datasheet_url": "https://docs.example.com/datasheet.pdf",
+      "cad_file_urls": ["https://docs.example.com/model.step"],
+      "build_manual_url": "https://docs.example.com/manual.pdf",
+      "safety_data_sheets_urls": ["https://docs.example.com/sds.pdf"]
+    },
+    "physical_configuration": {
+      "unit_variants": [
+        {
+          "unit_name": "Standard Unit",
+          "unit_of_analysis": "single purifier",
+          "dimensions": {
+            "length": 120,
+            "width": 60,
+            "height": 150
+          },
+          "footprint_area": 0.72,
+          "volume": 1.08,
+          "unit_weight": 45.5,
+          "package_size": "130x70x160 cm",
+          "package_weight": 52.0,
+          "stackability_notes": "Can stack up to 3 units",
+          "modular_interfaces": ["water inlet", "water outlet", "solar panel connector"],
+          "operating_range": {
+            "min_temperature": 5,
+            "max_temperature": 45,
+            "min_humidity": 10,
+            "max_humidity": 95,
+            "pressure_notes": "Standard atmospheric pressure"
+          },
+          "scalability_notes": "Can be connected in series for higher capacity"
+        }
+      ]
+    },
+    "economics": {
+      "retail_price": 2500.00,
+      "wholesale_price": 1800.00,
+      "minimum_order_quantity": 10,
+      "production_lead_time_days": 30,
+      "production_capacity_per_month": 500,
+      "plan_access_type": "none"
+    },
+    "manufacturing_and_supply_chain": {
+      "manufacturing_locations": [
+        {
+          "city": "Portland",
+          "state_province": "Oregon",
+          "country": "USA"
+        }
+      ],
+      "manufacturing_method": "Assembly from components",
+      "fabrication_complexity_score": 3,
+      "energy_per_unit_kwh": 25.5,
+      "water_per_unit_liters": 50,
+      "waste_generated_notes": "Minimal waste, recyclable packaging",
+      "transport_energy_per_unit_kwh": 15.0,
+      "supply_chain_risk_notes": "Low risk, domestic suppliers"
+    },
+    "environmental_impact": {
+      "embodied_carbon_kg_co2e": 150.0,
+      "operational_carbon_kg_co2e_per_year": 0,
+      "air_pollution_notes": "Zero emissions during operation",
+      "water_pollution_notes": "Produces clean water, no pollutants",
+      "material_toxicity_level": "Low",
+      "recyclability_percent": 85,
+      "end_of_life_pathways": "Component recycling program available",
+      "ai_environmental_score": 92.5,
+      "ai_environmental_score_breakdown": "High score due to solar power and water purification benefits"
+    },
+    "human_impact": {
+      "safety_rating": "A",
+      "noise_level_db": 25,
+      "health_benefits_notes": "Provides clean drinking water, reducing waterborne diseases",
+      "ergonomics_score": 8.5,
+      "social_benefit_notes": "Improves community health outcomes",
+      "ai_human_impact_score": 95.0,
+      "ai_human_impact_score_breakdown": "Excellent health and social benefits"
+    },
+    "eden_impact_summary": {
+      "eden_positive_impact_points": 850,
+      "best_use_cases": ["Rural water access", "Disaster relief", "Sustainable development"],
+      "eden_recommended_rating": "Highly Recommended"
+    },
+    "functional_io": {
+      "inputs": [
+        {
+          "input_type": "contaminated water",
+          "quantity": 100,
+          "time_profile": "continuous",
+          "quality_spec": "turbidity < 100 NTU"
+        },
+        {
+          "input_type": "solar energy",
+          "quantity": 200,
+          "time_profile": "daylight hours",
+          "quality_spec": "minimum 4 peak sun hours"
+        }
+      ],
+      "outputs": [
+        {
+          "output_type": "purified water",
+          "quantity": 95,
+          "quality_spec": "WHO drinking water standards",
+          "variability_profile": "depends on input water quality"
+        }
+      ],
+      "financial_output_value": [
+        {
+          "output_type": "purified water",
+          "output_quantity_per_unit": 500,
+          "unit_of_measure": "liters/day",
+          "market_price_per_unit": 0.05,
+          "currency": "USD",
+          "price_region": "Global average",
+          "cycles_per_year": 365,
+          "annual_output_value": 9125.00,
+          "lifetime_output_value": 91250.00,
+          "payback_period_years": 0.27,
+          "net_financial_yield": 88750.00,
+          "revenue_model": "internal_value"
+        }
+      ]
+    },
+    "interoperability": {
+      "compatible_assets": ["EDEN-SOL-001", "EDEN-TANK-002"],
+      "required_dependencies": ["Water source", "Sunlight"],
+      "optional_complements": ["Storage tank", "Distribution system"],
+      "supported_standards": ["ISO 24510", "WHO Guidelines"],
+      "integration_notes": "Standard plumbing connections",
+      "maintenance_requirements": "Filter replacement every 6 months",
+      "replacement_cycle_years": 10
+    },
+    "deployment": {
+      "climate_zones": ["tropical", "subtropical", "temperate"],
+      "min_operating_temperature": 5,
+      "max_operating_temperature": 45,
+      "min_relative_humidity": 10,
+      "max_relative_humidity": 95,
+      "max_uv_exposure_rating": "High",
+      "soil_requirements": ["stable ground", "level surface"],
+      "geographic_suitability_notes": "Suitable for most regions with adequate sunlight"
+    },
+    "lifecycle": {
+      "expected_lifespan_normal_years": 15,
+      "expected_lifespan_harsh_years": 10,
+      "degradation_factors": "UV exposure, water quality",
+      "service_interval_months": 6,
+      "end_of_life_instructions": "Return to manufacturer for recycling"
+    },
+    "simulation": {
+      "performance_curve": "linear degradation 2% per year",
+      "energy_model": "solar irradiance dependent",
+      "yield_model": "500L/day at standard conditions"
+    },
+    "documentation_summary": {
+      "technical_docs_present": "Complete",
+      "media_assets_present": "Photos and videos available",
+      "ai_extraction_notes": "All fields extracted successfully"
+    },
+    "user_feedback": {
+      "user_ratings": [4.8, 4.9, 4.7, 5.0],
+      "field_performance_notes": "Excellent performance in field trials",
+      "lessons_learned": "Pre-filtration improves longevity",
+      "suggested_improvements": "Add remote monitoring capability"
+    }
+  },
+  "plan_asset": {
+    "asset_id": "EDEN-PLN-001",
+    "asset_type": "plan",
+    "system_meta": {
+      "status": "approved",
+      "version": "v2.1",
+      "created_by": "designer@example.com",
+      "created_at": "2024-03-01T08:00:00Z"
+    },
+    "basic_information": {
+      "category": "Agriculture",
+      "subcategory": "Irrigation",
+      "asset_name": "DIY Drip Irrigation System",
+      "short_summary": "Open-source plans for building a low-cost drip irrigation system",
+      "function_purpose": "Enable efficient water delivery to crops",
+      "scaling_potential": "local",
+      "creator_name": "Open Farm Collective",
+      "creator_email": "plans@openfarm.example.org",
+      "original_source_url": "https://openfarm.example.org/drip-irrigation",
+      "attribution_text": "Open Farm Collective CC-BY-SA 4.0",
+      "license_owner": "Open Farm Collective"
+    },
+    "contributor": {
+      "name": "Maria Garcia",
+      "email": "maria@example.com",
+      "submission_status": "complete",
+      "agreement_signed": true
+    },
+    "overview": {
+      "key_features": ["Low cost materials", "Easy to build", "Scalable design"],
+      "intended_use_cases": ["Small farms", "Community gardens", "Greenhouses"]
+    },
+    "plan_configuration": {
+      "build_complexity_score": 2,
+      "tool_complexity_score": 1,
+      "required_skill_level": "Beginner",
+      "required_skills": ["Basic plumbing", "Measuring"],
+      "required_tools": ["Drill", "Scissors", "Measuring tape"],
+      "estimated_build_time_hours": 4,
+      "annual_maintenance_time_hours": 2,
+      "repair_time_hours": 0.5
+    },
+    "economics": {
+      "retail_price": 0,
+      "plan_access_type": "free"
+    },
+    "licensing": {
+      "license_type": "Creative Commons",
+      "license_version": "CC-BY-SA 4.0",
+      "allowed_uses": "Personal and commercial use",
+      "restrictions": "Must share modifications under same license",
+      "attribution_required": true,
+      "derivative_works_allowed": true,
+      "commercial_use_allowed": true
+    },
+    "materials_and_bom": [
+      {
+        "material_name": "PVC pipe 1/2 inch",
+        "quantity": 50,
+        "unit": "meters",
+        "source": "Local hardware store",
+        "estimated_cost": 25.00,
+        "local_alternatives": "Bamboo tubes",
+        "environmental_notes": "PVC is recyclable"
+      },
+      {
+        "material_name": "Drip emitters",
+        "quantity": 100,
+        "unit": "pieces",
+        "estimated_cost": 15.00
+      }
+    ],
+    "environmental_impact": {
+      "water_pollution_notes": "Reduces water waste by 50%",
+      "recyclability_percent": 90,
+      "regenerative_outputs_notes": "Improves soil moisture retention"
+    },
+    "eden_impact_summary": {
+      "eden_positive_impact_points": 650,
+      "best_use_cases": ["Water conservation", "Small-scale farming"],
+      "eden_recommended_rating": "Recommended"
+    },
+    "documentation_uploads": {
+      "build_manual_url": "https://docs.example.com/drip-manual.pdf",
+      "step_by_step_instructions_url": "https://docs.example.com/drip-steps.pdf",
+      "bom_url": "https://docs.example.com/drip-bom.xlsx"
+    }
+  },
+  "hybrid_asset": {
+    "asset_id": "EDEN-HYB-001",
+    "asset_type": "hybrid",
+    "system_meta": {
+      "status": "under_review",
+      "version": "v1.0",
+      "created_by": "innovator@example.com",
+      "created_at": "2024-04-15T12:00:00Z"
+    },
+    "basic_information": {
+      "category": "Energy",
+      "subcategory": "Solar",
+      "asset_name": "Community Solar Kit",
+      "short_summary": "Solar panel kit with DIY installation plans",
+      "function_purpose": "Provide renewable energy to off-grid communities",
+      "scaling_potential": "global",
+      "associated_physical_asset_id": "EDEN-PHY-SOL-001",
+      "associated_plan_asset_id": "EDEN-PLN-SOL-001",
+      "company_name": "SunPower Community",
+      "company_email": "hello@sunpower.example.com"
+    },
+    "physical_configuration": {
+      "unit_variants": [
+        {
+          "unit_name": "Basic Kit",
+          "dimensions": {
+            "length": 100,
+            "width": 65,
+            "height": 5
+          },
+          "unit_weight": 18.5
+        }
+      ]
+    },
+    "plan_configuration": {
+      "build_complexity_score": 4,
+      "tool_complexity_score": 3,
+      "required_skill_level": "Intermediate",
+      "required_skills": ["Electrical wiring", "Roof mounting"],
+      "estimated_build_time_hours": 8
+    },
+    "economics": {
+      "retail_price": 800.00,
+      "wholesale_price": 600.00,
+      "plan_access_type": "fixed_price"
+    },
+    "licensing": {
+      "license_type": "Proprietary with open installation guide",
+      "commercial_use_allowed": true
+    },
+    "commissions_and_settlement": {
+      "eden_commission_percent": 5.0,
+      "accepts_fiat": true,
+      "accepts_credit_card": true,
+      "accepts_eden_tokens": true,
+      "primary_settlement_method": "mixed",
+      "payout_split": {
+        "supplier_or_creator_percent": 80,
+        "eden_platform_percent": 5,
+        "referrer_percent": 10,
+        "local_community_percent": 5
+      }
+    },
+    "eden_impact_summary": {
+      "eden_positive_impact_points": 920,
+      "best_use_cases": ["Rural electrification", "Community energy independence"],
+      "eden_recommended_rating": "Highly Recommended"
+    }
+  },
+  "minimal_valid_asset": {
+    "asset_type": "physical"
+  }
+}

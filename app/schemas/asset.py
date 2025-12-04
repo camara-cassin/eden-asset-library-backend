@@ -141,39 +141,222 @@ class PlanConfiguration(BaseModel):
     repair_time_hours: Optional[float] = None
 
 
-class IOItem(BaseModel):
-    name: Optional[str] = None
-    type: Optional[str] = None
-    unit: Optional[str] = None
-    description: Optional[str] = None
+class InputItem(BaseModel):
+    input_type: Optional[str] = None
+    quantity: Optional[float] = None
+    time_profile: Optional[str] = None
+    quality_spec: Optional[str] = None
+
+
+class OutputItem(BaseModel):
+    output_type: Optional[str] = None
+    quantity: Optional[float] = None
+    quality_spec: Optional[str] = None
+    variability_profile: Optional[str] = None
+
+
+class FinancialOutputValue(BaseModel):
+    output_type: Optional[str] = None
+    output_quantity_per_unit: Optional[float] = None
+    unit_of_measure: Optional[str] = None
+    market_price_per_unit: Optional[float] = None
+    currency: Optional[str] = "USD"
+    price_region: Optional[str] = None
+    price_source_reference: Optional[str] = None
+    cycles_per_year: Optional[float] = None
+    annual_output_value: Optional[float] = None
+    lifetime_output_value: Optional[float] = None
+    payback_period_years: Optional[float] = None
+    net_financial_yield: Optional[float] = None
+    revenue_model: Optional[str] = None
+    eden_token_equivalent_value: Optional[float] = None
 
 
 class FunctionalIO(BaseModel):
-    inputs: Optional[List[IOItem]] = []
-    outputs: Optional[List[IOItem]] = []
+    inputs: Optional[List[InputItem]] = []
+    outputs: Optional[List[OutputItem]] = []
+    financial_output_value: Optional[List[FinancialOutputValue]] = []
 
 
 class Economics(BaseModel):
     retail_price: Optional[float] = None
-    currency: Optional[str] = None
-    price_notes: Optional[str] = None
-    estimated_lifespan_years: Optional[float] = None
-    maintenance_cost_annual: Optional[float] = None
-    roi_notes: Optional[str] = None
+    wholesale_price: Optional[float] = None
+    minimum_order_quantity: Optional[float] = None
+    production_lead_time_days: Optional[float] = None
+    production_capacity_per_month: Optional[float] = None
+    plan_access_type: Optional[str] = None
+
+
+class Licensing(BaseModel):
+    license_type: Optional[str] = None
+    license_version: Optional[str] = None
+    allowed_uses: Optional[str] = None
+    restrictions: Optional[str] = None
+    attribution_required: Optional[bool] = None
+    derivative_works_allowed: Optional[bool] = None
+    commercial_use_allowed: Optional[bool] = None
+
+
+class PayoutSplit(BaseModel):
+    supplier_or_creator_percent: Optional[float] = None
+    eden_platform_percent: Optional[float] = None
+    referrer_percent: Optional[float] = None
+    local_community_percent: Optional[float] = None
+    vesting_or_lockup_rules: Optional[str] = None
+
+
+class CommissionsAndSettlement(BaseModel):
+    eden_commission_percent: Optional[float] = None
+    high_value_commission_rules: Optional[str] = None
+    billing_contact_email: Optional[str] = None
+    billing_contact_phone: Optional[str] = None
+    invoicing_address: Optional[str] = None
+    payment_terms: Optional[str] = None
+    agreement_document_url: Optional[str] = None
+    accepts_fiat: Optional[bool] = None
+    accepts_credit_card: Optional[bool] = None
+    accepts_eden_tokens: Optional[bool] = None
+    accepts_other_crypto: Optional[bool] = None
+    primary_settlement_method: Optional[str] = None
+    smart_contract_settlement_enabled: Optional[bool] = None
+    blockchain_network: Optional[str] = None
+    smart_contract_type: Optional[str] = None
+    smart_contract_address: Optional[str] = None
+    smart_contract_abi_link: Optional[str] = None
+    on_chain_asset_id: Optional[str] = None
+    eden_token_price: Optional[float] = None
+    eden_reward_multiplier: Optional[float] = None
+    payout_split: Optional[PayoutSplit] = None
+    token_to_fiat_path: Optional[str] = None
+    fiat_invoicing_required: Optional[bool] = None
+    scout_commission_percent: Optional[float] = None
+    scout_payment_method: Optional[str] = None
+    scout_payment_conditions: Optional[str] = None
+    scout_referral_link: Optional[str] = None
+
+
+class MaterialItem(BaseModel):
+    material_name: Optional[str] = None
+    quantity: Optional[float] = None
+    unit: Optional[str] = None
+    source: Optional[str] = None
+    estimated_cost: Optional[float] = None
+    local_alternatives: Optional[str] = None
+    environmental_notes: Optional[str] = None
+
+
+class ManufacturingLocation(BaseModel):
+    city: Optional[str] = None
+    state_province: Optional[str] = None
+    country: Optional[str] = None
+
+
+class ManufacturingAndSupplyChain(BaseModel):
+    manufacturing_locations: Optional[List[ManufacturingLocation]] = []
+    manufacturing_method: Optional[str] = None
+    fabrication_complexity_score: Optional[int] = None
+    energy_per_unit_kwh: Optional[float] = None
+    water_per_unit_liters: Optional[float] = None
+    waste_generated_notes: Optional[str] = None
+    transport_energy_per_unit_kwh: Optional[float] = None
+    supply_chain_risk_notes: Optional[str] = None
+
+
+class EnvironmentalImpact(BaseModel):
+    embodied_carbon_kg_co2e: Optional[float] = None
+    operational_carbon_kg_co2e_per_year: Optional[float] = None
+    air_pollution_notes: Optional[str] = None
+    water_pollution_notes: Optional[str] = None
+    soil_pollution_notes: Optional[str] = None
+    material_toxicity_level: Optional[str] = None
+    recyclability_percent: Optional[float] = None
+    biodegradation_timeline_years: Optional[float] = None
+    end_of_life_pathways: Optional[str] = None
+    circular_recovery_value: Optional[str] = None
+    regenerative_outputs_notes: Optional[str] = None
+    ai_environmental_score: Optional[float] = None
+    ai_environmental_score_breakdown: Optional[str] = None
+
+
+class HumanImpact(BaseModel):
+    safety_rating: Optional[str] = None
+    emissions_during_use_notes: Optional[str] = None
+    off_gassing_notes: Optional[str] = None
+    noise_level_db: Optional[float] = None
+    health_benefits_notes: Optional[str] = None
+    risk_factors_notes: Optional[str] = None
+    ergonomics_score: Optional[float] = None
+    labour_demand_notes: Optional[str] = None
+    social_benefit_notes: Optional[str] = None
+    ai_human_impact_score: Optional[float] = None
+    ai_human_impact_score_breakdown: Optional[str] = None
+
+
+class Interoperability(BaseModel):
+    compatible_assets: Optional[List[str]] = []
+    required_dependencies: Optional[List[str]] = []
+    optional_complements: Optional[List[str]] = []
+    supported_standards: Optional[List[str]] = []
+    integration_notes: Optional[str] = None
+    potential_failure_modes: Optional[str] = None
+    maintenance_requirements: Optional[str] = None
+    replacement_cycle_years: Optional[float] = None
 
 
 class Deployment(BaseModel):
     climate_zones: Optional[List[str]] = []
-    terrain_types: Optional[List[str]] = []
-    infrastructure_requirements: Optional[List[str]] = []
-    deployment_notes: Optional[str] = None
+    min_operating_temperature: Optional[float] = None
+    max_operating_temperature: Optional[float] = None
+    min_relative_humidity: Optional[float] = None
+    max_relative_humidity: Optional[float] = None
+    max_uv_exposure_rating: Optional[str] = None
+    max_wind_speed_rating: Optional[float] = None
+    max_rainfall_intensity: Optional[float] = None
+    min_altitude: Optional[float] = None
+    max_altitude: Optional[float] = None
+    soil_requirements: Optional[List[str]] = []
+    soil_and_ground_notes: Optional[str] = None
+    geographic_suitability_notes: Optional[str] = None
+    warranty_restrictions_by_geography: Optional[str] = None
+
+
+class Lifecycle(BaseModel):
+    expected_lifespan_normal_years: Optional[float] = None
+    expected_lifespan_harsh_years: Optional[float] = None
+    degradation_factors: Optional[str] = None
+    service_interval_months: Optional[float] = None
+    end_of_life_instructions: Optional[str] = None
+
+
+class Simulation(BaseModel):
+    resource_consumption_curve: Optional[str] = None
+    performance_curve: Optional[str] = None
+    degradation_curve: Optional[str] = None
+    failure_probability_model: Optional[str] = None
+    thermal_impact_model: Optional[str] = None
+    energy_model: Optional[str] = None
+    yield_model: Optional[str] = None
+    additional_simulation_parameters: Optional[str] = None
+
+
+class DocumentationSummary(BaseModel):
+    technical_docs_present: Optional[str] = None
+    media_assets_present: Optional[str] = None
+    ai_extraction_notes: Optional[str] = None
+
+
+class UserFeedback(BaseModel):
+    user_ratings: Optional[List[float]] = []
+    field_performance_notes: Optional[str] = None
+    reported_issues: Optional[str] = None
+    lessons_learned: Optional[str] = None
+    suggested_improvements: Optional[str] = None
 
 
 class EdenImpactSummary(BaseModel):
     eden_positive_impact_points: Optional[float] = None
+    best_use_cases: Optional[List[str]] = []
     eden_recommended_rating: Optional[str] = None
-    impact_categories: Optional[List[str]] = []
-    impact_notes: Optional[str] = None
 
 
 class AssetCreate(BaseModel):
@@ -187,10 +370,21 @@ class AssetCreate(BaseModel):
     documentation_uploads: Optional[DocumentationUploads] = None
     physical_configuration: Optional[PhysicalConfiguration] = None
     plan_configuration: Optional[PlanConfiguration] = None
-    functional_io: Optional[FunctionalIO] = None
     economics: Optional[Economics] = None
-    deployment: Optional[Deployment] = None
+    licensing: Optional[Licensing] = None
+    commissions_and_settlement: Optional[CommissionsAndSettlement] = None
+    materials_and_bom: Optional[List[MaterialItem]] = []
+    manufacturing_and_supply_chain: Optional[ManufacturingAndSupplyChain] = None
+    environmental_impact: Optional[EnvironmentalImpact] = None
+    human_impact: Optional[HumanImpact] = None
     eden_impact_summary: Optional[EdenImpactSummary] = None
+    functional_io: Optional[FunctionalIO] = None
+    interoperability: Optional[Interoperability] = None
+    deployment: Optional[Deployment] = None
+    lifecycle: Optional[Lifecycle] = None
+    simulation: Optional[Simulation] = None
+    documentation_summary: Optional[DocumentationSummary] = None
+    user_feedback: Optional[UserFeedback] = None
 
     class Config:
         extra = "allow"
@@ -206,10 +400,21 @@ class AssetUpdate(BaseModel):
     documentation_uploads: Optional[dict] = None
     physical_configuration: Optional[dict] = None
     plan_configuration: Optional[dict] = None
-    functional_io: Optional[dict] = None
     economics: Optional[dict] = None
-    deployment: Optional[dict] = None
+    licensing: Optional[dict] = None
+    commissions_and_settlement: Optional[dict] = None
+    materials_and_bom: Optional[List[dict]] = None
+    manufacturing_and_supply_chain: Optional[dict] = None
+    environmental_impact: Optional[dict] = None
+    human_impact: Optional[dict] = None
     eden_impact_summary: Optional[dict] = None
+    functional_io: Optional[dict] = None
+    interoperability: Optional[dict] = None
+    deployment: Optional[dict] = None
+    lifecycle: Optional[dict] = None
+    simulation: Optional[dict] = None
+    documentation_summary: Optional[dict] = None
+    user_feedback: Optional[dict] = None
 
     class Config:
         extra = "allow"
