@@ -505,6 +505,7 @@ async def list_assets(
     sort_by: str = "created_at",
     sort_dir: str = "desc",
     approved_only: bool = False,
+    contributor_id: Optional[str] = None,
 ) -> Tuple[List[EdenAsset], int]:
     """
     List and filter assets with pagination.
@@ -516,6 +517,9 @@ async def list_assets(
     
     if approved_only:
         conditions.append(EdenAsset.status == "approved")
+    
+    if contributor_id:
+        conditions.append(EdenAsset.contributor_id == contributor_id)
     
     if asset_type:
         conditions.append(EdenAsset.asset_type == asset_type)

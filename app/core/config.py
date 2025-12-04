@@ -13,6 +13,15 @@ class Settings(BaseSettings):
     AI_ENABLED: bool = False
     AI_SERVICE_URL: Optional[str] = None
     
+    # JWT Authentication
+    JWT_SECRET: str = "your-secret-key-change-in-production"
+    JWT_EXPIRE_MINUTES: int = 60
+    JWT_ALGORITHM: str = "HS256"
+    
+    # Initial admin user (for seeding)
+    INITIAL_ADMIN_EMAIL: Optional[str] = None
+    INITIAL_ADMIN_PASSWORD: Optional[str] = None
+    
     class Config:
         env_file = ".env"
         case_sensitive = True
