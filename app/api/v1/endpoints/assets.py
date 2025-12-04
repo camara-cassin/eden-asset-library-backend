@@ -16,7 +16,9 @@ router = APIRouter()
 
 
 def format_asset_response(asset) -> dict:
-    return asset.data
+    response = asset.data.copy()
+    response["id"] = str(asset.id)
+    return response
 
 
 def format_asset_list_item(asset) -> dict:
