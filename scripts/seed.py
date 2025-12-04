@@ -5,6 +5,7 @@ Creates three example assets: one physical, one plan, and one hybrid.
 Also creates an initial admin user if INITIAL_ADMIN_EMAIL and INITIAL_ADMIN_PASSWORD are set.
 """
 import asyncio
+import ssl
 import sys
 import os
 
@@ -16,7 +17,7 @@ from sqlalchemy import select
 
 from app.core.config import settings
 from app.core.security import get_password_hash
-from app.db.database import Base
+from app.db.database import Base, fix_database_url_for_asyncpg
 from app.services.asset_service import create_asset
 from app.models.user import User, UserRole
 
@@ -364,7 +365,17 @@ async def seed_admin_user(session: AsyncSession):
 
 async def seed_database():
     """Create example assets and admin user in the database."""
-    engine = create_async_engine(settings.DATABASE_URL, echo=True)
+    # Use the same SSL fix as the main app
+    database_url, needs_ssl = fix_database_url_for_asyncpg(settings.DATABASE_URL)
+    
+    connect_args = {}
+    if needs_ssl:
+        ssl_context = ssl.create_default_context()
+        ssl_context.check_hostname = False
+        ssl_context.verify_mode = ssl.CERT_NONE
+        connect_args["ssl"] = ssl_context
+    
+    engine = create_async_engine(database_url, echo=True, connect_args=connect_args)
     
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
