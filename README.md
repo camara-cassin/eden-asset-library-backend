@@ -19,6 +19,8 @@ Backend API for the EDEN Asset Library - Store, manage, and query assets that co
 - Reference data endpoints for UI dropdowns
 - AI prefill stub (ready for future AI integration)
 - File URL attachment support
+- JWT authentication with role-based access control
+- User roles: admin, contributor, viewer
 
 ## Setup
 
@@ -60,6 +62,13 @@ cp .env.example .env
 | `DATABASE_URL_SYNC` | PostgreSQL sync connection string | `postgresql://postgres:postgres@localhost:5432/eden_assets` |
 | `AI_ENABLED` | Enable AI extraction features | `false` |
 | `AI_SERVICE_URL` | URL of AI microservice (when enabled) | `None` |
+| `JWT_SECRET` | Secret key for JWT token signing (REQUIRED in production) | `your-secret-key-change-in-production` |
+| `JWT_EXPIRE_MINUTES` | JWT token expiration time in minutes | `60` |
+| `JWT_ALGORITHM` | JWT signing algorithm | `HS256` |
+| `INITIAL_ADMIN_EMAIL` | Email for initial admin user (optional, for seeding) | `None` |
+| `INITIAL_ADMIN_PASSWORD` | Password for initial admin user (optional, for seeding) | `None` |
+
+**IMPORTANT**: In production, you MUST set `JWT_SECRET` to a secure random value. The default value is insecure.
 
 ### Database Setup
 
@@ -129,17 +138,21 @@ Once the server is running, access the interactive API documentation at:
 ### Health Check
 - `GET /api/v1/health` - Health check with build info
 
-### Assets
-- `POST /api/v1/assets` - Create a new asset (draft)
-- `GET /api/v1/assets` - List and filter assets
-- `GET /api/v1/assets/:id` - Get single asset
-- `PATCH /api/v1/assets/:id` - Update asset (partial deep merge)
-- `DELETE /api/v1/assets/:id` - Soft delete asset
+### Authentication
+- `POST /api/v1/auth/login` - Login with email/password, returns JWT token
+- `GET /api/v1/auth/me` - Get current user info (requires authentication)
+
+### Assets (Protected - requires authentication)
+- `POST /api/v1/assets` - Create a new asset (auto-sets contributor from current user)
+- `GET /api/v1/assets` - List assets (contributors see only their own, admins see all)
+- `GET /api/v1/assets/:id` - Get single asset (authorization check)
+- `PATCH /api/v1/assets/:id` - Update asset (only owner or admin)
+- `DELETE /api/v1/assets/:id` - Soft delete asset (only owner or admin)
 
 ### Workflow
-- `POST /api/v1/assets/:id/submit` - Submit for review
-- `POST /api/v1/assets/:id/approve` - Approve asset
-- `POST /api/v1/assets/:id/reject` - Reject asset
+- `POST /api/v1/assets/:id/submit` - Submit for review (requires authentication)
+- `POST /api/v1/assets/:id/approve` - Approve asset (admin only)
+- `POST /api/v1/assets/:id/reject` - Reject asset (admin only)
 
 ### Files
 - `POST /api/v1/assets/:id/files` - Attach file URL
