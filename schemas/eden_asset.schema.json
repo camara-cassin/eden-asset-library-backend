@@ -124,7 +124,9 @@
             "pending_license_confirmation",
             "pending_agreement",
             "complete",
-            "approved"
+            "approved",
+            "changes_requested",
+            "rejected"
           ]
         },
         "automated_outreach_status": {
