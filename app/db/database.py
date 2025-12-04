@@ -7,19 +7,27 @@ from app.core.config import settings
 
 def fix_database_url_for_asyncpg(url: str) -> str:
     """
-    Remove incompatible parameters for asyncpg compatibility.
-    asyncpg supports sslmode but not channel_binding and other libpq-specific params.
+    Convert incompatible parameters for asyncpg compatibility.
+    asyncpg doesn't support sslmode, channel_binding, and other libpq-specific params
+    as query string parameters - they get passed as kwargs which asyncpg rejects.
+    Instead, we strip them and use ssl=true for TLS connections.
     """
     parsed = urlparse(url)
     query_params = parse_qs(parsed.query)
     
-    # Only remove params that asyncpg truly doesn't support
-    # asyncpg DOES support sslmode with values: disable, allow, prefer, require, verify-ca, verify-full
-    incompatible_params = ['channel_binding', 'sslrootcert', 'sslcert', 'sslkey']
+    incompatible_params = ['sslmode', 'channel_binding', 'sslrootcert', 'sslcert', 'sslkey']
+    has_ssl = False
     
     for param in incompatible_params:
         if param in query_params:
+            if param == 'sslmode':
+                sslmode = query_params[param][0]
+                if sslmode in ('require', 'verify-ca', 'verify-full'):
+                    has_ssl = True
             query_params.pop(param)
+    
+    if has_ssl:
+        query_params['ssl'] = ['true']
     
     new_query = urlencode(query_params, doseq=True)
     new_parsed = parsed._replace(query=new_query)
