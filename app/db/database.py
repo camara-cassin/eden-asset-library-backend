@@ -61,15 +61,36 @@ async def get_db() -> AsyncSession:
 
 async def init_db():
     """
-    Initialize database connection.
+    Initialize database connection and seed admin user if configured.
     
     NOTE: This function no longer auto-creates tables.
     Use Alembic migrations instead:
         alembic upgrade head
     
-    This function is kept for any startup initialization that may be needed
-    (e.g., connection pool warming, health checks).
+    This function seeds an admin user if INITIAL_ADMIN_EMAIL and 
+    INITIAL_ADMIN_PASSWORD environment variables are set.
     """
-    # Connection verification is handled by the engine pool
-    # No auto-create - use migrations instead
-    pass
+    from sqlalchemy import select
+    from app.models.user import User
+    from app.core.security import get_password_hash
+    
+    # Seed admin user if configured
+    admin_email = settings.INITIAL_ADMIN_EMAIL
+    admin_password = settings.INITIAL_ADMIN_PASSWORD
+    
+    if admin_email and admin_password:
+        async with async_session_maker() as session:
+            # Check if admin already exists
+            result = await session.execute(select(User).where(User.email == admin_email))
+            existing_admin = result.scalar_one_or_none()
+            
+            if existing_admin is None:
+                admin_user = User(
+                    name="Admin",
+                    email=admin_email,
+                    password_hash=get_password_hash(admin_password),
+                    role="admin",
+                )
+                session.add(admin_user)
+                await session.commit()
+                print(f"Admin user created: {admin_email}")
