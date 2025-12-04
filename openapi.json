@@ -26,14 +26,133 @@
         }
       }
     },
+    "/api/v1/auth/login": {
+      "post": {
+        "tags": [
+          "Authentication",
+          "Authentication"
+        ],
+        "summary": "Login",
+        "description": "Authenticate user and return JWT token.",
+        "operationId": "login_api_v1_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/signup": {
+      "post": {
+        "tags": [
+          "Authentication",
+          "Authentication"
+        ],
+        "summary": "Signup",
+        "description": "Register a new user account.\n\n- Email must be unique\n- Password must be at least 8 characters\n- New users are always created with role = \"contributor\"\n- Returns JWT token and user info on success",
+        "operationId": "signup_api_v1_auth_signup_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignupRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignupResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/me": {
+      "get": {
+        "tags": [
+          "Authentication",
+          "Authentication"
+        ],
+        "summary": "Get Me",
+        "description": "Get current authenticated user.",
+        "operationId": "get_me_api_v1_auth_me_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/assets": {
       "post": {
         "tags": [
           "Assets"
         ],
         "summary": "Create Asset",
-        "description": "Create a new EdenAsset in draft status.\nMinimum required fields: asset_type, basic_information.asset_name, basic_information.category",
+        "description": "Create a new EdenAsset in draft status.\nRequires authentication. Auto-sets contributor info from current user.\nMinimum required fields: asset_type, basic_information.asset_name, basic_information.category",
         "operationId": "create_asset_api_v1_assets_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -70,8 +189,13 @@
           "Assets"
         ],
         "summary": "List Assets",
-        "description": "Search and filter assets with pagination.",
+        "description": "Search and filter assets with pagination.\nRequires authentication. Admin sees all assets, contributors see only their own.",
         "operationId": "list_assets_api_v1_assets_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "q",
@@ -362,8 +486,13 @@
           "Assets"
         ],
         "summary": "Update Asset",
-        "description": "Update asset with partial deep merge.",
+        "description": "Update asset with partial deep merge.\nRequires authentication. Admin can edit any asset, contributors can only edit their own.",
         "operationId": "update_asset_api_v1_assets__asset_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "asset_id",
@@ -447,8 +576,13 @@
           "Assets"
         ],
         "summary": "Submit Asset",
-        "description": "Submit asset for review with strict validation.",
+        "description": "Submit asset for review with strict validation.\nRequires authentication. Contributor can submit their own, admin can submit any.",
         "operationId": "submit_asset_api_v1_assets__asset_id__submit_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "asset_id",
@@ -488,8 +622,13 @@
           "Assets"
         ],
         "summary": "Approve Asset",
-        "description": "Approve an asset.",
+        "description": "Approve an asset. Admin only.\nSets status=\"approved\" and submission_status=\"approved\".",
         "operationId": "approve_asset_api_v1_assets__asset_id__approve_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "asset_id",
@@ -546,8 +685,13 @@
           "Assets"
         ],
         "summary": "Reject Asset",
-        "description": "Reject an asset.",
+        "description": "Reject an asset. Admin only.\nSets submission_status=\"changes_requested\". Accepts reject reason.",
         "operationId": "reject_asset_api_v1_assets__asset_id__reject_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "asset_id",
@@ -597,8 +741,13 @@
           "Assets"
         ],
         "summary": "Attach File",
-        "description": "Attach a file URL to the asset's documentation_uploads.",
+        "description": "Attach a file URL to the asset's documentation_uploads.\nRequires authentication.",
         "operationId": "attach_file_api_v1_assets__asset_id__files_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "asset_id",
@@ -648,8 +797,13 @@
           "Assets"
         ],
         "summary": "Ai Extract",
-        "description": "Trigger AI extraction (stub mode when AI_ENABLED is false).",
+        "description": "Trigger AI extraction (stub mode when AI_ENABLED is false).\nRequires authentication.",
         "operationId": "ai_extract_api_v1_assets__asset_id__ai_extract_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "asset_id",
@@ -1501,6 +1655,91 @@
               }
             ]
           },
+          "economics": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Economics"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "licensing": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Licensing"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "commissions_and_settlement": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CommissionsAndSettlement"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "materials_and_bom": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/MaterialItem"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Materials And Bom",
+            "default": []
+          },
+          "manufacturing_and_supply_chain": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ManufacturingAndSupplyChain"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "environmental_impact": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EnvironmentalImpact"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "human_impact": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HumanImpact"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "eden_impact_summary": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EdenImpactSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "functional_io": {
             "anyOf": [
               {
@@ -1511,10 +1750,10 @@
               }
             ]
           },
-          "economics": {
+          "interoperability": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/Economics"
+                "$ref": "#/components/schemas/Interoperability"
               },
               {
                 "type": "null"
@@ -1531,10 +1770,40 @@
               }
             ]
           },
-          "eden_impact_summary": {
+          "lifecycle": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/EdenImpactSummary"
+                "$ref": "#/components/schemas/Lifecycle"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "simulation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Simulation"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "documentation_summary": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DocumentationSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "user_feedback": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UserFeedback"
               },
               {
                 "type": "null"
@@ -1658,6 +1927,105 @@
             ],
             "title": "Plan Configuration"
           },
+          "economics": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Economics"
+          },
+          "licensing": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Licensing"
+          },
+          "commissions_and_settlement": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Commissions And Settlement"
+          },
+          "materials_and_bom": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Materials And Bom"
+          },
+          "manufacturing_and_supply_chain": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Manufacturing And Supply Chain"
+          },
+          "environmental_impact": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Environmental Impact"
+          },
+          "human_impact": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Human Impact"
+          },
+          "eden_impact_summary": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Eden Impact Summary"
+          },
           "functional_io": {
             "anyOf": [
               {
@@ -1670,7 +2038,7 @@
             ],
             "title": "Functional Io"
           },
-          "economics": {
+          "interoperability": {
             "anyOf": [
               {
                 "additionalProperties": true,
@@ -1680,7 +2048,7 @@
                 "type": "null"
               }
             ],
-            "title": "Economics"
+            "title": "Interoperability"
           },
           "deployment": {
             "anyOf": [
@@ -1694,7 +2062,7 @@
             ],
             "title": "Deployment"
           },
-          "eden_impact_summary": {
+          "lifecycle": {
             "anyOf": [
               {
                 "additionalProperties": true,
@@ -1704,7 +2072,43 @@
                 "type": "null"
               }
             ],
-            "title": "Eden Impact Summary"
+            "title": "Lifecycle"
+          },
+          "simulation": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Simulation"
+          },
+          "documentation_summary": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Documentation Summary"
+          },
+          "user_feedback": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Feedback"
           }
         },
         "additionalProperties": true,
@@ -1989,6 +2393,308 @@
         "type": "object",
         "title": "BasicInformation"
       },
+      "CommissionsAndSettlement": {
+        "properties": {
+          "eden_commission_percent": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Eden Commission Percent"
+          },
+          "high_value_commission_rules": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "High Value Commission Rules"
+          },
+          "billing_contact_email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Billing Contact Email"
+          },
+          "billing_contact_phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Billing Contact Phone"
+          },
+          "invoicing_address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Invoicing Address"
+          },
+          "payment_terms": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payment Terms"
+          },
+          "agreement_document_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agreement Document Url"
+          },
+          "accepts_fiat": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accepts Fiat"
+          },
+          "accepts_credit_card": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accepts Credit Card"
+          },
+          "accepts_eden_tokens": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accepts Eden Tokens"
+          },
+          "accepts_other_crypto": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accepts Other Crypto"
+          },
+          "primary_settlement_method": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Primary Settlement Method"
+          },
+          "smart_contract_settlement_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Smart Contract Settlement Enabled"
+          },
+          "blockchain_network": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Blockchain Network"
+          },
+          "smart_contract_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Smart Contract Type"
+          },
+          "smart_contract_address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Smart Contract Address"
+          },
+          "smart_contract_abi_link": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Smart Contract Abi Link"
+          },
+          "on_chain_asset_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "On Chain Asset Id"
+          },
+          "eden_token_price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Eden Token Price"
+          },
+          "eden_reward_multiplier": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Eden Reward Multiplier"
+          },
+          "payout_split": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PayoutSplit"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "token_to_fiat_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Token To Fiat Path"
+          },
+          "fiat_invoicing_required": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fiat Invoicing Required"
+          },
+          "scout_commission_percent": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scout Commission Percent"
+          },
+          "scout_payment_method": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scout Payment Method"
+          },
+          "scout_payment_conditions": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scout Payment Conditions"
+          },
+          "scout_referral_link": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scout Referral Link"
+          }
+        },
+        "type": "object",
+        "title": "CommissionsAndSettlement"
+      },
       "Contributor": {
         "properties": {
           "name": {
@@ -2137,37 +2843,51 @@
             "title": "Climate Zones",
             "default": []
           },
-          "terrain_types": {
+          "min_operating_temperature": {
             "anyOf": [
               {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
+                "type": "number"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Terrain Types",
-            "default": []
+            "title": "Min Operating Temperature"
           },
-          "infrastructure_requirements": {
+          "max_operating_temperature": {
             "anyOf": [
               {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
+                "type": "number"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Infrastructure Requirements",
-            "default": []
+            "title": "Max Operating Temperature"
           },
-          "deployment_notes": {
+          "min_relative_humidity": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Relative Humidity"
+          },
+          "max_relative_humidity": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Relative Humidity"
+          },
+          "max_uv_exposure_rating": {
             "anyOf": [
               {
                 "type": "string"
@@ -2176,7 +2896,99 @@
                 "type": "null"
               }
             ],
-            "title": "Deployment Notes"
+            "title": "Max Uv Exposure Rating"
+          },
+          "max_wind_speed_rating": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Wind Speed Rating"
+          },
+          "max_rainfall_intensity": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Rainfall Intensity"
+          },
+          "min_altitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Altitude"
+          },
+          "max_altitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Altitude"
+          },
+          "soil_requirements": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Soil Requirements",
+            "default": []
+          },
+          "soil_and_ground_notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Soil And Ground Notes"
+          },
+          "geographic_suitability_notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Geographic Suitability Notes"
+          },
+          "warranty_restrictions_by_geography": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Warranty Restrictions By Geography"
           }
         },
         "type": "object",
@@ -2220,6 +3032,45 @@
         },
         "type": "object",
         "title": "Dimensions"
+      },
+      "DocumentationSummary": {
+        "properties": {
+          "technical_docs_present": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Technical Docs Present"
+          },
+          "media_assets_present": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Media Assets Present"
+          },
+          "ai_extraction_notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ai Extraction Notes"
+          }
+        },
+        "type": "object",
+        "title": "DocumentationSummary"
       },
       "DocumentationUploads": {
         "properties": {
@@ -2452,29 +3303,7 @@
             ],
             "title": "Retail Price"
           },
-          "currency": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Currency"
-          },
-          "price_notes": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Price Notes"
-          },
-          "estimated_lifespan_years": {
+          "wholesale_price": {
             "anyOf": [
               {
                 "type": "number"
@@ -2483,9 +3312,9 @@
                 "type": "null"
               }
             ],
-            "title": "Estimated Lifespan Years"
+            "title": "Wholesale Price"
           },
-          "maintenance_cost_annual": {
+          "minimum_order_quantity": {
             "anyOf": [
               {
                 "type": "number"
@@ -2494,9 +3323,31 @@
                 "type": "null"
               }
             ],
-            "title": "Maintenance Cost Annual"
+            "title": "Minimum Order Quantity"
           },
-          "roi_notes": {
+          "production_lead_time_days": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Production Lead Time Days"
+          },
+          "production_capacity_per_month": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Production Capacity Per Month"
+          },
+          "plan_access_type": {
             "anyOf": [
               {
                 "type": "string"
@@ -2505,7 +3356,7 @@
                 "type": "null"
               }
             ],
-            "title": "Roi Notes"
+            "title": "Plan Access Type"
           }
         },
         "type": "object",
@@ -2524,18 +3375,7 @@
             ],
             "title": "Eden Positive Impact Points"
           },
-          "eden_recommended_rating": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Eden Recommended Rating"
-          },
-          "impact_categories": {
+          "best_use_cases": {
             "anyOf": [
               {
                 "items": {
@@ -2547,10 +3387,10 @@
                 "type": "null"
               }
             ],
-            "title": "Impact Categories",
+            "title": "Best Use Cases",
             "default": []
           },
-          "impact_notes": {
+          "eden_recommended_rating": {
             "anyOf": [
               {
                 "type": "string"
@@ -2559,11 +3399,160 @@
                 "type": "null"
               }
             ],
-            "title": "Impact Notes"
+            "title": "Eden Recommended Rating"
           }
         },
         "type": "object",
         "title": "EdenImpactSummary"
+      },
+      "EnvironmentalImpact": {
+        "properties": {
+          "embodied_carbon_kg_co2e": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Embodied Carbon Kg Co2E"
+          },
+          "operational_carbon_kg_co2e_per_year": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operational Carbon Kg Co2E Per Year"
+          },
+          "air_pollution_notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Air Pollution Notes"
+          },
+          "water_pollution_notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Water Pollution Notes"
+          },
+          "soil_pollution_notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Soil Pollution Notes"
+          },
+          "material_toxicity_level": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Material Toxicity Level"
+          },
+          "recyclability_percent": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recyclability Percent"
+          },
+          "biodegradation_timeline_years": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Biodegradation Timeline Years"
+          },
+          "end_of_life_pathways": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Of Life Pathways"
+          },
+          "circular_recovery_value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Circular Recovery Value"
+          },
+          "regenerative_outputs_notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Regenerative Outputs Notes"
+          },
+          "ai_environmental_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ai Environmental Score"
+          },
+          "ai_environmental_score_breakdown": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ai Environmental Score Breakdown"
+          }
+        },
+        "type": "object",
+        "title": "EnvironmentalImpact"
       },
       "FileAttachRequest": {
         "properties": {
@@ -2594,13 +3583,174 @@
         ],
         "title": "FileAttachRequest"
       },
+      "FinancialOutputValue": {
+        "properties": {
+          "output_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Type"
+          },
+          "output_quantity_per_unit": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Quantity Per Unit"
+          },
+          "unit_of_measure": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit Of Measure"
+          },
+          "market_price_per_unit": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Market Price Per Unit"
+          },
+          "currency": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currency",
+            "default": "USD"
+          },
+          "price_region": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Region"
+          },
+          "price_source_reference": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Source Reference"
+          },
+          "cycles_per_year": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cycles Per Year"
+          },
+          "annual_output_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Annual Output Value"
+          },
+          "lifetime_output_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lifetime Output Value"
+          },
+          "payback_period_years": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payback Period Years"
+          },
+          "net_financial_yield": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Net Financial Yield"
+          },
+          "revenue_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revenue Model"
+          },
+          "eden_token_equivalent_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Eden Token Equivalent Value"
+          }
+        },
+        "type": "object",
+        "title": "FinancialOutputValue"
+      },
       "FunctionalIO": {
         "properties": {
           "inputs": {
             "anyOf": [
               {
                 "items": {
-                  "$ref": "#/components/schemas/IOItem"
+                  "$ref": "#/components/schemas/InputItem"
                 },
                 "type": "array"
               },
@@ -2615,7 +3765,7 @@
             "anyOf": [
               {
                 "items": {
-                  "$ref": "#/components/schemas/IOItem"
+                  "$ref": "#/components/schemas/OutputItem"
                 },
                 "type": "array"
               },
@@ -2624,6 +3774,21 @@
               }
             ],
             "title": "Outputs",
+            "default": []
+          },
+          "financial_output_value": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/FinancialOutputValue"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Financial Output Value",
             "default": []
           }
         },
@@ -2643,9 +3808,9 @@
         "type": "object",
         "title": "HTTPValidationError"
       },
-      "IOItem": {
+      "HumanImpact": {
         "properties": {
-          "name": {
+          "safety_rating": {
             "anyOf": [
               {
                 "type": "string"
@@ -2654,9 +3819,9 @@
                 "type": "null"
               }
             ],
-            "title": "Name"
+            "title": "Safety Rating"
           },
-          "type": {
+          "emissions_during_use_notes": {
             "anyOf": [
               {
                 "type": "string"
@@ -2665,7 +3830,594 @@
                 "type": "null"
               }
             ],
-            "title": "Type"
+            "title": "Emissions During Use Notes"
+          },
+          "off_gassing_notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Off Gassing Notes"
+          },
+          "noise_level_db": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Noise Level Db"
+          },
+          "health_benefits_notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Health Benefits Notes"
+          },
+          "risk_factors_notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Risk Factors Notes"
+          },
+          "ergonomics_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ergonomics Score"
+          },
+          "labour_demand_notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Labour Demand Notes"
+          },
+          "social_benefit_notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Social Benefit Notes"
+          },
+          "ai_human_impact_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ai Human Impact Score"
+          },
+          "ai_human_impact_score_breakdown": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ai Human Impact Score Breakdown"
+          }
+        },
+        "type": "object",
+        "title": "HumanImpact"
+      },
+      "InputItem": {
+        "properties": {
+          "input_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input Type"
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quantity"
+          },
+          "time_profile": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Time Profile"
+          },
+          "quality_spec": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quality Spec"
+          }
+        },
+        "type": "object",
+        "title": "InputItem"
+      },
+      "Interoperability": {
+        "properties": {
+          "compatible_assets": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Compatible Assets",
+            "default": []
+          },
+          "required_dependencies": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Required Dependencies",
+            "default": []
+          },
+          "optional_complements": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Optional Complements",
+            "default": []
+          },
+          "supported_standards": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supported Standards",
+            "default": []
+          },
+          "integration_notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Integration Notes"
+          },
+          "potential_failure_modes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Potential Failure Modes"
+          },
+          "maintenance_requirements": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Maintenance Requirements"
+          },
+          "replacement_cycle_years": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Replacement Cycle Years"
+          }
+        },
+        "type": "object",
+        "title": "Interoperability"
+      },
+      "Licensing": {
+        "properties": {
+          "license_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "License Type"
+          },
+          "license_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "License Version"
+          },
+          "allowed_uses": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Allowed Uses"
+          },
+          "restrictions": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Restrictions"
+          },
+          "attribution_required": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attribution Required"
+          },
+          "derivative_works_allowed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Derivative Works Allowed"
+          },
+          "commercial_use_allowed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Commercial Use Allowed"
+          }
+        },
+        "type": "object",
+        "title": "Licensing"
+      },
+      "Lifecycle": {
+        "properties": {
+          "expected_lifespan_normal_years": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Lifespan Normal Years"
+          },
+          "expected_lifespan_harsh_years": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Lifespan Harsh Years"
+          },
+          "degradation_factors": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Degradation Factors"
+          },
+          "service_interval_months": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Service Interval Months"
+          },
+          "end_of_life_instructions": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Of Life Instructions"
+          }
+        },
+        "type": "object",
+        "title": "Lifecycle"
+      },
+      "LoginRequest": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email"
+          },
+          "password": {
+            "type": "string",
+            "title": "Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email",
+          "password"
+        ],
+        "title": "LoginRequest"
+      },
+      "ManufacturingAndSupplyChain": {
+        "properties": {
+          "manufacturing_locations": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ManufacturingLocation"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Manufacturing Locations",
+            "default": []
+          },
+          "manufacturing_method": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Manufacturing Method"
+          },
+          "fabrication_complexity_score": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fabrication Complexity Score"
+          },
+          "energy_per_unit_kwh": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Energy Per Unit Kwh"
+          },
+          "water_per_unit_liters": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Water Per Unit Liters"
+          },
+          "waste_generated_notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Waste Generated Notes"
+          },
+          "transport_energy_per_unit_kwh": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Transport Energy Per Unit Kwh"
+          },
+          "supply_chain_risk_notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supply Chain Risk Notes"
+          }
+        },
+        "type": "object",
+        "title": "ManufacturingAndSupplyChain"
+      },
+      "ManufacturingLocation": {
+        "properties": {
+          "city": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "City"
+          },
+          "state_province": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State Province"
+          },
+          "country": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country"
+          }
+        },
+        "type": "object",
+        "title": "ManufacturingLocation"
+      },
+      "MaterialItem": {
+        "properties": {
+          "material_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Material Name"
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quantity"
           },
           "unit": {
             "anyOf": [
@@ -2678,7 +4430,7 @@
             ],
             "title": "Unit"
           },
-          "description": {
+          "source": {
             "anyOf": [
               {
                 "type": "string"
@@ -2687,11 +4439,44 @@
                 "type": "null"
               }
             ],
-            "title": "Description"
+            "title": "Source"
+          },
+          "estimated_cost": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estimated Cost"
+          },
+          "local_alternatives": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Local Alternatives"
+          },
+          "environmental_notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Environmental Notes"
           }
         },
         "type": "object",
-        "title": "IOItem"
+        "title": "MaterialItem"
       },
       "OperatingRange": {
         "properties": {
@@ -2754,6 +4539,56 @@
         "type": "object",
         "title": "OperatingRange"
       },
+      "OutputItem": {
+        "properties": {
+          "output_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Type"
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quantity"
+          },
+          "quality_spec": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quality Spec"
+          },
+          "variability_profile": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variability Profile"
+          }
+        },
+        "type": "object",
+        "title": "OutputItem"
+      },
       "Overview": {
         "properties": {
           "photos": {
@@ -2815,6 +4650,67 @@
         },
         "type": "object",
         "title": "Overview"
+      },
+      "PayoutSplit": {
+        "properties": {
+          "supplier_or_creator_percent": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supplier Or Creator Percent"
+          },
+          "eden_platform_percent": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Eden Platform Percent"
+          },
+          "referrer_percent": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Referrer Percent"
+          },
+          "local_community_percent": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Local Community Percent"
+          },
+          "vesting_or_lockup_rules": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vesting Or Lockup Rules"
+          }
+        },
+        "type": "object",
+        "title": "PayoutSplit"
       },
       "PhysicalConfiguration": {
         "properties": {
@@ -2991,6 +4887,152 @@
         "type": "object",
         "title": "ReviewRequest"
       },
+      "SignupRequest": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email"
+          },
+          "password": {
+            "type": "string",
+            "title": "Password"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email",
+          "password"
+        ],
+        "title": "SignupRequest"
+      },
+      "SignupResponse": {
+        "properties": {
+          "access_token": {
+            "type": "string",
+            "title": "Access Token"
+          },
+          "token_type": {
+            "type": "string",
+            "title": "Token Type",
+            "default": "bearer"
+          },
+          "user": {
+            "$ref": "#/components/schemas/UserResponse"
+          }
+        },
+        "type": "object",
+        "required": [
+          "access_token",
+          "user"
+        ],
+        "title": "SignupResponse"
+      },
+      "Simulation": {
+        "properties": {
+          "resource_consumption_curve": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resource Consumption Curve"
+          },
+          "performance_curve": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Performance Curve"
+          },
+          "degradation_curve": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Degradation Curve"
+          },
+          "failure_probability_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Probability Model"
+          },
+          "thermal_impact_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thermal Impact Model"
+          },
+          "energy_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Energy Model"
+          },
+          "yield_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Yield Model"
+          },
+          "additional_simulation_parameters": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Additional Simulation Parameters"
+          }
+        },
+        "type": "object",
+        "title": "Simulation"
+      },
       "SourceUsed": {
         "properties": {
           "source_type": {
@@ -3139,6 +5181,24 @@
         "type": "object",
         "title": "SystemMeta"
       },
+      "TokenResponse": {
+        "properties": {
+          "access_token": {
+            "type": "string",
+            "title": "Access Token"
+          },
+          "token_type": {
+            "type": "string",
+            "title": "Token Type",
+            "default": "bearer"
+          }
+        },
+        "type": "object",
+        "required": [
+          "access_token"
+        ],
+        "title": "TokenResponse"
+      },
       "UnitVariant": {
         "properties": {
           "unit_name": {
@@ -3279,6 +5339,114 @@
         "type": "object",
         "title": "UnitVariant"
       },
+      "UserFeedback": {
+        "properties": {
+          "user_ratings": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Ratings",
+            "default": []
+          },
+          "field_performance_notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Field Performance Notes"
+          },
+          "reported_issues": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reported Issues"
+          },
+          "lessons_learned": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lessons Learned"
+          },
+          "suggested_improvements": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Suggested Improvements"
+          }
+        },
+        "type": "object",
+        "title": "UserFeedback"
+      },
+      "UserResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "role": {
+            "$ref": "#/components/schemas/UserRole"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "email",
+          "role",
+          "created_at"
+        ],
+        "title": "UserResponse"
+      },
+      "UserRole": {
+        "type": "string",
+        "enum": [
+          "admin",
+          "contributor",
+          "viewer"
+        ],
+        "title": "UserRole"
+      },
       "ValidationError": {
         "properties": {
           "loc": {
@@ -3311,6 +5479,12 @@
           "type"
         ],
         "title": "ValidationError"
+      }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "type": "http",
+        "scheme": "bearer"
       }
     }
   }
