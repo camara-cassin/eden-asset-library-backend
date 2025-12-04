@@ -492,7 +492,46 @@ class FileAttachRequest(BaseModel):
     label: Optional[str] = None
 
 
+class AIExtractionSource(BaseModel):
+    """Sources for AI extraction - website URL and/or uploaded file references."""
+    website_url: Optional[str] = None
+    uploaded_file_ids: List[str] = []
+
+
+class AIExtractionRequest(BaseModel):
+    """Request model for AI extraction endpoint."""
+    asset_id: str
+    sources: AIExtractionSource
+    target_sections: List[str] = [
+        "basic_information",
+        "functional_io",
+        "economics",
+        "physical_configuration",
+        "environmental_impact",
+        "human_impact",
+        "deployment",
+    ]
+
+
+class AIFieldUpdate(BaseModel):
+    """A single field update suggested by AI extraction."""
+    path: str  # JSON path, e.g. "functional_io.outputs[0].quantity"
+    value: Any
+    confidence: float  # 0-1 confidence score
+    source: str  # which doc/url this came from
+
+
+class AIExtractionResponse(BaseModel):
+    """Response model for AI extraction endpoint."""
+    field_updates: List[AIFieldUpdate]
+    fields_prefilled: List[str]  # list of JSON paths that were prefilled
+    sources_used: List[str]  # URLs or file IDs that were processed
+    notes_for_reviewer: List[str]  # human-readable suggestions/notes
+
+
+# Legacy models for backward compatibility
 class AIExtractRequest(BaseModel):
+    """Legacy request model - use AIExtractionRequest for new implementations."""
     sources: Optional[dict] = None
     website_url: Optional[str] = None
     use_uploaded_docs: Optional[bool] = True

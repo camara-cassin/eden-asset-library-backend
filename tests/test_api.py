@@ -428,7 +428,7 @@ class TestFileAttachment:
 class TestAIExtract:
     @pytest.mark.asyncio
     async def test_ai_extract_stub(self, client, auth_headers):
-        """POST /assets/:id/ai-extract with AI_ENABLED=false updates prefill_status to complete."""
+        """POST /assets/:id/ai-extract with USE_REAL_AI=false returns AIExtractionResponse."""
         create_response = await client.post("/api/v1/assets", json=MINIMAL_ASSET, headers=auth_headers)
         
         list_response = await client.get("/api/v1/assets", headers=auth_headers)
@@ -439,11 +439,20 @@ class TestAIExtract:
         }, headers=auth_headers)
         assert response.status_code == 200
         data = response.json()
-        assert data["ai_assistance"]["prefill_status"] == "complete"
         
-        sources_used = data["ai_assistance"]["sources_used"]
-        assert len(sources_used) > 0
-        assert sources_used[-1]["source_ref"] == "ai_extract_stub"
+        # New response format: AIExtractionResponse
+        assert "field_updates" in data
+        assert "fields_prefilled" in data
+        assert "sources_used" in data
+        assert "notes_for_reviewer" in data
+        
+        # Verify sources_used contains at least stub data
+        assert len(data["sources_used"]) > 0
+        
+        # Verify the asset was updated by fetching it
+        asset_response = await client.get(f"/api/v1/assets/{uuid}", headers=auth_headers)
+        asset_data = asset_response.json()
+        assert asset_data["ai_assistance"]["prefill_status"] == "complete"
 
 
 class TestReferenceData:

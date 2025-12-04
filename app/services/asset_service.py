@@ -398,16 +398,171 @@ def _apply_field_updates(data: dict, field_updates: dict) -> dict:
     return data
 
 
+def _generate_stub_extraction_response(
+    data: dict, 
+    website_url: Optional[str] = None,
+    uploaded_file_ids: List[str] = []
+) -> dict:
+    """
+    Generate a realistic stub AI extraction response.
+    This simulates what a real AI service would return.
+    """
+    sources_used = []
+    field_updates = []
+    fields_prefilled = []
+    notes_for_reviewer = []
+    
+    # Add website URL to sources if provided
+    if website_url:
+        sources_used.append(website_url)
+        notes_for_reviewer.append(f"Analyzed product page at {website_url}")
+    
+    # Add uploaded file IDs to sources
+    for file_id in uploaded_file_ids:
+        sources_used.append(file_id)
+    
+    # Collect any existing uploaded docs as sources
+    doc_uploads = data.get("documentation_uploads", {})
+    for field_name, field_value in doc_uploads.items():
+        if isinstance(field_value, list):
+            sources_used.extend(field_value)
+        elif field_value:
+            sources_used.append(field_value)
+    
+    # If no sources, still provide some stub data
+    if not sources_used:
+        sources_used.append("stub_data_source")
+        notes_for_reviewer.append("No external sources provided - using placeholder data")
+    
+    # Get current asset name for context
+    basic_info = data.get("basic_information", {})
+    asset_name = basic_info.get("asset_name", "Unknown Asset")
+    
+    # Generate stub field updates based on what's missing
+    # Only add updates for fields that are empty/missing
+    
+    # Check if short_summary needs updating
+    if not basic_info.get("short_summary"):
+        field_updates.append({
+            "path": "basic_information.short_summary",
+            "value": f"AI-extracted summary for {asset_name}. This is a placeholder that should be reviewed and updated with accurate information from the product documentation.",
+            "confidence": 0.75,
+            "source": sources_used[0] if sources_used else "stub"
+        })
+        fields_prefilled.append("basic_information.short_summary")
+        notes_for_reviewer.append("Short summary was auto-generated - please review for accuracy")
+    
+    # Check functional_io and add example output if empty
+    functional_io = data.get("functional_io", {})
+    outputs = functional_io.get("outputs", [])
+    
+    if not outputs:
+        field_updates.append({
+            "path": "functional_io.outputs[0]",
+            "value": {
+                "output_type": "Primary Output",
+                "quantity": 100,
+                "unit": "kWh",
+                "time_period": "per_month",
+                "estimated_financial_value_usd": 12.00,
+                "quality_spec": "Standard grade",
+                "variability_profile": "Seasonal variation expected"
+            },
+            "confidence": 0.65,
+            "source": sources_used[0] if sources_used else "stub"
+        })
+        fields_prefilled.append("functional_io.outputs[0].output_type")
+        fields_prefilled.append("functional_io.outputs[0].quantity")
+        fields_prefilled.append("functional_io.outputs[0].unit")
+        fields_prefilled.append("functional_io.outputs[0].time_period")
+        fields_prefilled.append("functional_io.outputs[0].estimated_financial_value_usd")
+        notes_for_reviewer.append("Added example functional output - values are placeholders, please verify against actual specifications")
+    
+    # Add note about economics if retail_price is missing
+    economics = data.get("economics", {})
+    if not economics.get("retail_price"):
+        notes_for_reviewer.append("Retail price not found in sources - consider adding pricing information manually")
+    
+    return {
+        "field_updates": field_updates,
+        "fields_prefilled": fields_prefilled,
+        "sources_used": sources_used,
+        "notes_for_reviewer": notes_for_reviewer
+    }
+
+
+def _apply_stub_field_updates(data: dict, field_updates: List[dict]) -> dict:
+    """
+    Apply field updates from AI extraction to the asset data.
+    Handles JSON path notation including array indices.
+    """
+    import re
+    
+    for update in field_updates:
+        path = update.get("path", "")
+        value = update.get("value")
+        
+        if not path:
+            continue
+        
+        # Parse the path - handle array notation like "outputs[0]"
+        parts = []
+        for part in path.split("."):
+            # Check for array index notation
+            match = re.match(r"(\w+)\[(\d+)\]", part)
+            if match:
+                parts.append(match.group(1))
+                parts.append(int(match.group(2)))
+            else:
+                parts.append(part)
+        
+        # Navigate to the parent and set the value
+        current = data
+        for i, part in enumerate(parts[:-1]):
+            if isinstance(part, int):
+                # Array index - current should be a list
+                if not isinstance(current, list):
+                    break
+                while len(current) <= part:
+                    current.append({})
+                current = current[part]
+            else:
+                # Object key
+                if part not in current:
+                    # Check if next part is an int (array index)
+                    next_idx = i + 1
+                    if next_idx < len(parts) and isinstance(parts[next_idx], int):
+                        current[part] = []
+                    else:
+                        current[part] = {}
+                current = current[part]
+        
+        # Set the final value
+        final_key = parts[-1]
+        if isinstance(final_key, int):
+            # current should be a list
+            if isinstance(current, list):
+                while len(current) <= final_key:
+                    current.append({})
+                current[final_key] = value
+        else:
+            if isinstance(current, dict):
+                current[final_key] = value
+    
+    return data
+
+
 async def ai_extract(
     db: AsyncSession, 
     asset: EdenAsset, 
     sources: dict,
     website_url: Optional[str] = None,
-    use_uploaded_docs: bool = True
-) -> EdenAsset:
+    use_uploaded_docs: bool = True,
+    uploaded_file_ids: List[str] = []
+) -> Tuple[EdenAsset, dict]:
     """
-    AI extraction. When AI_ENABLED is false, marks as complete with stub entry.
-    When AI_ENABLED is true, calls the AI microservice to extract data.
+    AI extraction. When USE_REAL_AI is false, returns realistic stub data.
+    When USE_REAL_AI is true, calls the AI microservice to extract data.
     
     Args:
         db: Database session
@@ -415,6 +570,10 @@ async def ai_extract(
         sources: Additional source configuration
         website_url: Optional website URL to scrape for data
         use_uploaded_docs: Whether to include uploaded documents in extraction
+        uploaded_file_ids: List of uploaded file IDs/paths to process
+    
+    Returns:
+        Tuple of (updated asset, extraction response dict)
     """
     import httpx
     
@@ -427,31 +586,55 @@ async def ai_extract(
     data["ai_assistance"]["prefill_status"] = "running"
     data["ai_assistance"]["last_run_at"] = now
     
-    if not settings.AI_ENABLED:
-        # Stub mode - just mark as complete
+    extraction_response = {
+        "field_updates": [],
+        "fields_prefilled": [],
+        "sources_used": [],
+        "notes_for_reviewer": []
+    }
+    
+    # Check USE_REAL_AI first, fall back to AI_ENABLED for backward compatibility
+    use_real_ai = settings.USE_REAL_AI or settings.AI_ENABLED
+    
+    if not use_real_ai:
+        # Stub mode - generate realistic stub response
+        extraction_response = _generate_stub_extraction_response(
+            data, 
+            website_url=website_url,
+            uploaded_file_ids=uploaded_file_ids
+        )
+        
+        # Apply the stub field updates to the asset data
+        if extraction_response["field_updates"]:
+            data = _apply_stub_field_updates(data, extraction_response["field_updates"])
+        
+        # Update ai_assistance with results
         data["ai_assistance"]["prefill_status"] = "complete"
+        data["ai_assistance"]["prefill_message"] = "AI extraction completed (stub mode)"
+        
         if "sources_used" not in data["ai_assistance"]:
             data["ai_assistance"]["sources_used"] = []
-        data["ai_assistance"]["sources_used"].append({
-            "source_type": "other",
-            "source_ref": "ai_extract_stub",
-            "notes": "AI extraction not yet implemented"
-        })
-        # Record the website_url if provided
-        if website_url:
+        for source in extraction_response["sources_used"]:
             data["ai_assistance"]["sources_used"].append({
-                "source_type": "web_search",
-                "source_ref": website_url,
-                "notes": "Website URL provided for extraction (stub mode)"
+                "source_type": "web_search" if source.startswith("http") else "document",
+                "source_ref": source,
+                "notes": "Processed in stub mode"
             })
+        
+        if "fields_prefilled" not in data["ai_assistance"]:
+            data["ai_assistance"]["fields_prefilled"] = []
+        data["ai_assistance"]["fields_prefilled"].extend(extraction_response["fields_prefilled"])
+        
     else:
         # Real AI mode - call the AI microservice
         try:
             source_urls = _collect_source_urls(data, sources, website_url=website_url, use_uploaded_docs=use_uploaded_docs)
+            source_urls.extend(uploaded_file_ids)
             
             if not source_urls:
                 data["ai_assistance"]["prefill_status"] = "failed"
                 data["ai_assistance"]["prefill_message"] = "No source URLs provided for extraction"
+                extraction_response["notes_for_reviewer"].append("Extraction failed: no sources provided")
             else:
                 # Call AI service
                 ai_payload = {
@@ -468,21 +651,31 @@ async def ai_extract(
                     response.raise_for_status()
                     ai_response = response.json()
                 
+                # Use the AI response as our extraction_response
+                extraction_response = {
+                    "field_updates": ai_response.get("field_updates", []),
+                    "fields_prefilled": ai_response.get("fields_prefilled", []),
+                    "sources_used": ai_response.get("sources_used", []),
+                    "notes_for_reviewer": ai_response.get("notes_for_reviewer", [])
+                }
+                
                 # Apply field updates
-                field_updates = ai_response.get("field_updates", {})
-                if field_updates:
-                    data = _apply_field_updates(data, field_updates)
+                if extraction_response["field_updates"]:
+                    data = _apply_stub_field_updates(data, extraction_response["field_updates"])
                 
                 # Update ai_assistance with results
-                fields_prefilled = ai_response.get("fields_prefilled", [])
                 if "fields_prefilled" not in data["ai_assistance"]:
                     data["ai_assistance"]["fields_prefilled"] = []
-                data["ai_assistance"]["fields_prefilled"].extend(fields_prefilled)
+                data["ai_assistance"]["fields_prefilled"].extend(extraction_response["fields_prefilled"])
                 
-                sources_used = ai_response.get("sources_used", [])
                 if "sources_used" not in data["ai_assistance"]:
                     data["ai_assistance"]["sources_used"] = []
-                data["ai_assistance"]["sources_used"].extend(sources_used)
+                for source in extraction_response["sources_used"]:
+                    data["ai_assistance"]["sources_used"].append({
+                        "source_type": "web_search" if isinstance(source, str) and source.startswith("http") else "document",
+                        "source_ref": source if isinstance(source, str) else str(source),
+                        "notes": "Processed by AI service"
+                    })
                 
                 data["ai_assistance"]["prefill_status"] = "complete"
                 data["ai_assistance"]["prefill_message"] = "AI extraction completed successfully"
@@ -490,12 +683,15 @@ async def ai_extract(
         except httpx.HTTPStatusError as e:
             data["ai_assistance"]["prefill_status"] = "failed"
             data["ai_assistance"]["prefill_message"] = f"AI service returned error: {e.response.status_code}"
+            extraction_response["notes_for_reviewer"].append(f"AI service error: {e.response.status_code}")
         except httpx.RequestError as e:
             data["ai_assistance"]["prefill_status"] = "failed"
             data["ai_assistance"]["prefill_message"] = f"Failed to connect to AI service: {str(e)}"
+            extraction_response["notes_for_reviewer"].append(f"Connection error: {str(e)}")
         except Exception as e:
             data["ai_assistance"]["prefill_status"] = "failed"
             data["ai_assistance"]["prefill_message"] = f"AI extraction failed: {str(e)}"
+            extraction_response["notes_for_reviewer"].append(f"Extraction error: {str(e)}")
     
     if "system_meta" not in data:
         data["system_meta"] = {}
@@ -508,7 +704,7 @@ async def ai_extract(
     await db.commit()
     await db.refresh(asset)
     
-    return asset
+    return asset, extraction_response
 
 
 async def list_assets(

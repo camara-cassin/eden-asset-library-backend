@@ -7,7 +7,7 @@ from app.db.database import get_db
 from app.schemas.asset import (
     AssetCreate, AssetUpdate, AssetResponse, PaginatedResponse,
     ErrorResponse, ReviewRequest, RejectRequest, FileAttachRequest, AIExtractRequest,
-    FileUploadResponse
+    FileUploadResponse, AIExtractionRequest, AIExtractionResponse, AIFieldUpdate
 )
 from app.services import asset_service
 from app.services.file_storage import save_upload, get_documentation_field, is_array_field
@@ -425,7 +425,7 @@ async def attach_file(
     return format_asset_response(updated_asset)
 
 
-@router.post("/{asset_id}/ai-extract")
+@router.post("/{asset_id}/ai-extract", response_model=AIExtractionResponse)
 async def ai_extract(
     asset_id: str,
     request: Optional[AIExtractRequest] = None,
@@ -433,9 +433,16 @@ async def ai_extract(
     current_user: User = Depends(get_current_user)
 ):
     """
-    Trigger AI extraction (stub mode when AI_ENABLED is false).
+    Trigger AI extraction (stub mode when USE_REAL_AI is false).
     Requires authentication.
+    
     Accepts optional website_url for scraping in addition to uploaded documents.
+    Returns AIExtractionResponse with field_updates, fields_prefilled, sources_used, and notes_for_reviewer.
+    
+    The asset's ai_assistance section is also updated with:
+    - prefill_status: "complete" or "failed"
+    - fields_prefilled: list of JSON paths that were updated
+    - sources_used: list of sources that were processed
     """
     asset = await asset_service.get_asset_by_id(db, asset_id)
     
@@ -451,15 +458,57 @@ async def ai_extract(
             }
         )
     
+    # Check authorization: admin can extract any, contributor can only extract their own
+    if current_user.role != UserRole.admin:
+        if asset.contributor_id != str(current_user.id):
+            raise HTTPException(
+                status_code=403,
+                detail={
+                    "error": {
+                        "code": "forbidden",
+                        "message": "You can only run AI extraction on your own assets",
+                        "details": {}
+                    }
+                }
+            )
+    
     sources = request.sources if request and request.sources else {}
     website_url = request.website_url if request else None
     use_uploaded_docs = request.use_uploaded_docs if request else True
     
-    updated_asset = await asset_service.ai_extract(
-        db, asset, sources, website_url=website_url, use_uploaded_docs=use_uploaded_docs
+    # Get uploaded file IDs from documentation_uploads if available
+    uploaded_file_ids = []
+    doc_uploads = asset.data.get("documentation_uploads", {})
+    for field_name, field_value in doc_uploads.items():
+        if isinstance(field_value, list):
+            uploaded_file_ids.extend(field_value)
+        elif field_value:
+            uploaded_file_ids.append(field_value)
+    
+    updated_asset, extraction_response = await asset_service.ai_extract(
+        db, asset, sources, 
+        website_url=website_url, 
+        use_uploaded_docs=use_uploaded_docs,
+        uploaded_file_ids=uploaded_file_ids
     )
     
-    return format_asset_response(updated_asset)
+    # Convert field_updates to AIFieldUpdate objects
+    field_updates = [
+        AIFieldUpdate(
+            path=update.get("path", ""),
+            value=update.get("value"),
+            confidence=update.get("confidence", 0.0),
+            source=update.get("source", "")
+        )
+        for update in extraction_response.get("field_updates", [])
+    ]
+    
+    return AIExtractionResponse(
+        field_updates=field_updates,
+        fields_prefilled=extraction_response.get("fields_prefilled", []),
+        sources_used=extraction_response.get("sources_used", []),
+        notes_for_reviewer=extraction_response.get("notes_for_reviewer", [])
+    )
 
 
 @router.post("/{asset_id}/uploads")

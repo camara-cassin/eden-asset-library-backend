@@ -10,7 +10,9 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/eden_assets"
     DATABASE_URL_SYNC: str = "postgresql://postgres:postgres@localhost:5432/eden_assets"
     
-    AI_ENABLED: bool = False
+    # AI Configuration
+    USE_REAL_AI: bool = False  # Set to True when plugging in actual AI services
+    AI_ENABLED: bool = False  # Legacy alias for USE_REAL_AI
     AI_SERVICE_URL: Optional[str] = None
     
     # JWT Authentication
