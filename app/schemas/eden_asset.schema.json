@@ -1,0 +1,337 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "title": "EdenAsset",
+  "properties": {
+    "asset_id": { "type": "string" },
+    "asset_type": {
+      "type": "string",
+      "enum": ["physical", "plan", "hybrid"],
+      "description": "Determines which subsections apply"
+    },
+    "system_meta": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["draft", "under_review", "approved", "deprecated"]
+        },
+        "version": { "type": "string" },
+        "created_by": { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" },
+        "updated_by": { "type": "string" },
+        "updated_at": { "type": "string", "format": "date-time" },
+        "raw_source_text": { "type": "string" },
+        "provenance_notes": { "type": "string" },
+        "internal_reviewer_notes": { "type": "string" }
+      }
+    },
+    "ai_assistance": {
+      "type": "object",
+      "description": "Tracks AI prefill events and sources",
+      "properties": {
+        "prefill_status": {
+          "type": "string",
+          "enum": ["not_run", "running", "complete", "failed"]
+        },
+        "prefill_message": {
+          "type": "string",
+          "default": "Gathering available information and pre-filling fields, please review for accuracy"
+        },
+        "last_run_at": { "type": "string", "format": "date-time" },
+        "sources_used": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "source_type": {
+                "type": "string",
+                "enum": ["uploaded_document", "web_search", "manual_entry", "other"]
+              },
+              "source_ref": { "type": "string" },
+              "notes": { "type": "string" }
+            }
+          }
+        },
+        "fields_prefilled": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "List of field paths that AI populated or updated"
+        }
+      }
+    },
+    "basic_information": {
+      "type": "object",
+      "properties": {
+        "category": { "type": "string" },
+        "subcategory": { "type": "string" },
+        "asset_name": { "type": "string" },
+        "short_summary": { "type": "string" },
+        "function_purpose": { "type": "string" },
+        "scaling_potential": {
+          "type": "string",
+          "enum": ["pilot", "local", "regional", "global"]
+        },
+        "long_description": { "type": "string" },
+        "associated_physical_asset_id": { "type": "string" },
+        "associated_plan_asset_id": { "type": "string" },
+        "company_name": { "type": "string" },
+        "company_phone": { "type": "string" },
+        "company_email": { "type": "string" },
+        "company_website_url": { "type": "string" },
+        "product_url_with_eden_attribution": { "type": "string" },
+        "creator_name": { "type": "string" },
+        "creator_organization": { "type": "string" },
+        "creator_email": { "type": "string" },
+        "original_source_url": { "type": "string" },
+        "attribution_text": { "type": "string" },
+        "attribution_link": { "type": "string" },
+        "license_owner": { "type": "string" },
+        "certifications": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "patent_links": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "year_introduced_or_updated": { "type": "string" }
+      }
+    },
+    "contributor": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "eden_username": { "type": "string" },
+        "wallet_address": { "type": "string" },
+        "contributor_id": { "type": "string" },
+        "submission_date": { "type": "string", "format": "date-time" },
+        "notes": { "type": "string" },
+        "submission_status": {
+          "type": "string",
+          "enum": [
+            "draft",
+            "pending_review",
+            "pending_supplier_contact",
+            "pending_creator_contact",
+            "pending_license_confirmation",
+            "pending_agreement",
+            "complete",
+            "approved",
+            "changes_requested",
+            "rejected"
+          ]
+        },
+        "automated_outreach_status": {
+          "type": "string",
+          "enum": ["not_sent", "sent", "responded", "details_completed"]
+        },
+        "agreement_signed": { "type": "boolean" },
+        "agreement_document_url": { "type": "string" }
+      }
+    },
+    "overview": {
+      "type": "object",
+      "properties": {
+        "photos": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "key_features": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "intended_use_cases": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "asset_type_description": { "type": "string" }
+      }
+    },
+    "documentation_uploads": {
+      "type": "object",
+      "properties": {
+        "technical_spec_sheet_url": { "type": "string" },
+        "product_datasheet_url": { "type": "string" },
+        "cad_file_urls": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "bim_file_urls": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "engineering_drawings_urls": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "build_manual_url": { "type": "string" },
+        "step_by_step_instructions_url": { "type": "string" },
+        "bom_url": { "type": "string" },
+        "tools_required_doc_url": { "type": "string" },
+        "skills_required_doc_url": { "type": "string" },
+        "safety_data_sheets_urls": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "certifications_docs_urls": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "patent_docs_urls": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "marketing_pdfs_urls": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "instructional_video_urls": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "additional_docs_urls": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "physical_configuration": {
+      "type": "object",
+      "description": "Applies when asset_type includes 'physical'",
+      "properties": {
+        "unit_variants": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "unit_name": { "type": "string" },
+              "unit_of_analysis": { "type": "string" },
+              "dimensions": {
+                "type": "object",
+                "properties": {
+                  "length": { "type": "number" },
+                  "width": { "type": "number" },
+                  "height": { "type": "number" }
+                }
+              },
+              "footprint_area": { "type": "number" },
+              "volume": { "type": "number" },
+              "unit_weight": { "type": "number" },
+              "package_size": { "type": "string" },
+              "package_weight": { "type": "number" },
+              "stackability_notes": { "type": "string" },
+              "modular_interfaces": {
+                "type": "array",
+                "items": { "type": "string" }
+              },
+              "operating_range": {
+                "type": "object",
+                "properties": {
+                  "min_temperature": { "type": "number" },
+                  "max_temperature": { "type": "number" },
+                  "min_humidity": { "type": "number" },
+                  "max_humidity": { "type": "number" },
+                  "pressure_notes": { "type": "string" }
+                }
+              },
+              "scalability_notes": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "plan_configuration": {
+      "type": "object",
+      "description": "Applies when asset_type includes 'plan'",
+      "properties": {
+        "build_complexity_score": { "type": "integer" },
+        "tool_complexity_score": { "type": "integer" },
+        "required_skill_level": { "type": "string" },
+        "required_skills": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "required_tools": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "estimated_build_time_hours": { "type": "number" },
+        "annual_maintenance_time_hours": { "type": "number" },
+        "repair_time_hours": { "type": "number" }
+      }
+    },
+    "functional_io": {
+      "type": "object",
+      "properties": {
+        "inputs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "type": { "type": "string" },
+              "unit": { "type": "string" },
+              "description": { "type": "string" }
+            }
+          }
+        },
+        "outputs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "type": { "type": "string" },
+              "unit": { "type": "string" },
+              "description": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "economics": {
+      "type": "object",
+      "properties": {
+        "retail_price": { "type": "number" },
+        "currency": { "type": "string" },
+        "price_notes": { "type": "string" },
+        "estimated_lifespan_years": { "type": "number" },
+        "maintenance_cost_annual": { "type": "number" },
+        "roi_notes": { "type": "string" }
+      }
+    },
+    "deployment": {
+      "type": "object",
+      "properties": {
+        "climate_zones": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "terrain_types": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "infrastructure_requirements": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "deployment_notes": { "type": "string" }
+      }
+    },
+    "eden_impact_summary": {
+      "type": "object",
+      "properties": {
+        "eden_positive_impact_points": { "type": "number" },
+        "eden_recommended_rating": { "type": "string" },
+        "impact_categories": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "impact_notes": { "type": "string" }
+      }
+    }
+  },
+  "required": ["asset_type"]
+}
