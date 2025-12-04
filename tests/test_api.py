@@ -468,10 +468,22 @@ class TestReferenceData:
     async def test_get_categories(self, client):
         response = await client.get("/api/v1/reference/categories")
         assert response.status_code == 200
-        assert "Energy" in response.json()
+        data = response.json()
+        # New hierarchical structure with categories array
+        assert "categories" in data
+        assert len(data["categories"]) == 9  # 9 primary categories
+        # Check that Energy and Heat is one of the primary categories
+        primary_names = [cat["primary"] for cat in data["categories"]]
+        assert "Energy and Heat" in primary_names
+        # Check that each category has color and subcategories
+        for cat in data["categories"]:
+            assert "primary" in cat
+            assert "subcategories" in cat
+            assert "color" in cat
 
     @pytest.mark.asyncio
     async def test_get_subcategories_filtered(self, client):
-        response = await client.get("/api/v1/reference/subcategories?category=Energy")
+        response = await client.get("/api/v1/reference/subcategories?category=Energy and Heat")
         assert response.status_code == 200
-        assert "Solar" in response.json()
+        subcategories = response.json()
+        assert "Solar (PV panels, thermal collectors)" in subcategories

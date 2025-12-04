@@ -69,17 +69,66 @@ async def create_asset(
                 }
             }
         )
-    if not basic_info.get("category"):
+    
+    # Validate categories: require either new categories array or legacy category field
+    categories = basic_info.get("categories", [])
+    legacy_category = basic_info.get("category")
+    
+    if not categories and not legacy_category:
         raise HTTPException(
             status_code=400,
             detail={
                 "error": {
                     "code": "validation_error",
-                    "message": "basic_information.category is required",
+                    "message": "At least one category is required (use basic_information.categories array or basic_information.category)",
                     "details": {}
                 }
             }
         )
+    
+    # Validate categories array if provided
+    if categories:
+        if len(categories) < 1:
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "error": {
+                        "code": "validation_error",
+                        "message": "At least 1 primary category is required",
+                        "details": {}
+                    }
+                }
+            )
+        if len(categories) > 4:
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "error": {
+                        "code": "validation_error",
+                        "message": "Maximum 4 primary categories allowed",
+                        "details": {}
+                    }
+                }
+            )
+        
+        # Validate each category has a primary field
+        for i, cat in enumerate(categories):
+            if not isinstance(cat, dict) or not cat.get("primary"):
+                raise HTTPException(
+                    status_code=400,
+                    detail={
+                        "error": {
+                            "code": "validation_error",
+                            "message": f"Category at index {i} must have a 'primary' field",
+                            "details": {}
+                        }
+                    }
+                )
+        
+        # Auto-populate legacy category field from first primary for backwards compat
+        if not legacy_category:
+            basic_info["category"] = categories[0].get("primary")
+            input_dict["basic_information"] = basic_info
     
     asset, errors = await asset_service.create_asset(db, input_dict)
     

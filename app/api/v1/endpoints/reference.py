@@ -1,35 +1,143 @@
 from fastapi import APIRouter, Query
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
+from pydantic import BaseModel
 
 router = APIRouter()
 
 ASSET_TYPES = ["physical", "plan", "hybrid"]
 
-CATEGORIES = [
-    "Energy",
-    "Water",
-    "Food & Agriculture",
-    "Shelter & Construction",
-    "Waste Management",
-    "Transportation",
-    "Health & Sanitation",
-    "Communication",
-    "Education",
-    "Manufacturing",
-]
-
-SUBCATEGORIES = {
-    "Energy": ["Solar", "Wind", "Hydro", "Biomass", "Geothermal", "Storage", "Grid", "Efficiency"],
-    "Water": ["Purification", "Collection", "Storage", "Distribution", "Irrigation", "Desalination"],
-    "Food & Agriculture": ["Farming", "Aquaculture", "Livestock", "Processing", "Storage", "Distribution"],
-    "Shelter & Construction": ["Housing", "Infrastructure", "Materials", "Tools", "Insulation"],
-    "Waste Management": ["Recycling", "Composting", "Sanitation", "Hazardous", "E-waste"],
-    "Transportation": ["Vehicles", "Infrastructure", "Logistics", "Public Transit"],
-    "Health & Sanitation": ["Medical Equipment", "Sanitation", "Diagnostics", "Preventive"],
-    "Communication": ["Networks", "Devices", "Software", "Broadcasting"],
-    "Education": ["Tools", "Content", "Infrastructure", "Training"],
-    "Manufacturing": ["Equipment", "Processes", "Materials", "Quality Control"],
+# New hierarchical category structure with 9 primary categories
+CATEGORY_HIERARCHY: Dict[str, List[str]] = {
+    "Shelter and Buildings": [
+        "Modular Housing Units",
+        "Building Components (walls, roofs, foundations)",
+        "Structural Systems",
+        "Insulation and Weatherproofing",
+        "Doors, Windows and Openings",
+        "Interior Finishes",
+        "Building Plans and Blueprints",
+    ],
+    "Energy and Heat": [
+        "Solar (PV panels, thermal collectors)",
+        "Wind Turbines",
+        "Hydroelectric Systems",
+        "Biogas and Biomass",
+        "Batteries and Energy Storage",
+        "Heating and Cooling Systems",
+        "Energy Distribution and Wiring",
+        "Micro-grids and Controllers",
+    ],
+    "Water, Air and Climate": [
+        "Water Collection (rainwater, fog nets, wells)",
+        "Water Storage (tanks, ponds, cisterns)",
+        "Water Filtration and Purification",
+        "Greywater and Blackwater Systems",
+        "Irrigation Systems",
+        "Air Quality and Ventilation",
+        "Climate Control Systems",
+        "Humidity Management",
+    ],
+    "Food Systems and Agriculture": [
+        "Growing Systems (raised beds, greenhouses, indoor)",
+        "Aquaponics and Hydroponics",
+        "Composting Systems",
+        "Seeds and Planting Materials",
+        "Livestock and Animal Husbandry",
+        "Food Processing and Preservation",
+        "Agricultural Tools and Equipment",
+        "Permaculture Elements",
+    ],
+    "Waste, Recycling and Bioprocessing": [
+        "Composting Toilets",
+        "Biogas Digesters",
+        "Recycling Equipment",
+        "Waste Sorting Systems",
+        "Biochar Production",
+        "Mushroom Cultivation",
+        "Vermicomposting",
+        "Waste-to-Energy Systems",
+    ],
+    "Tools, Fabrication and Manufacturing": [
+        "Hand Tools",
+        "Power Tools",
+        "CNC and Digital Fabrication",
+        "3D Printers",
+        "Welding and Metalworking",
+        "Woodworking Equipment",
+        "Electronics and Prototyping",
+        "Workshop Infrastructure",
+    ],
+    "Mobility and Transport": [
+        "Bicycles and E-bikes",
+        "Electric Vehicles",
+        "Cargo and Utility Vehicles",
+        "Boats and Watercraft",
+        "Paths and Infrastructure",
+        "Charging Stations",
+    ],
+    "Household and Personal Items": [
+        "Cookware and Kitchen Equipment",
+        "Furniture",
+        "Lighting",
+        "Textiles and Clothing",
+        "Storage Solutions",
+        "Personal Care Items",
+        "Communication Devices",
+    ],
+    "Health, Sanitation and Care": [
+        "Medical Equipment and Supplies",
+        "Hygiene Products",
+        "Sanitation Systems",
+        "First Aid and Emergency",
+        "Wellness and Fitness",
+        "Childcare Equipment",
+        "Elderly Care Equipment",
+    ],
 }
+
+# Category badge colors for frontend reference
+CATEGORY_COLORS: Dict[str, str] = {
+    "Shelter and Buildings": "amber",
+    "Energy and Heat": "yellow",
+    "Water, Air and Climate": "blue",
+    "Food Systems and Agriculture": "green",
+    "Waste, Recycling and Bioprocessing": "purple",
+    "Tools, Fabrication and Manufacturing": "gray",
+    "Mobility and Transport": "red",
+    "Household and Personal Items": "pink",
+    "Health, Sanitation and Care": "teal",
+}
+
+# Legacy flat lists for backwards compatibility
+CATEGORIES = list(CATEGORY_HIERARCHY.keys())
+
+SUBCATEGORIES = CATEGORY_HIERARCHY  # Alias for backwards compat
+
+# Migration mapping from old categories to new
+CATEGORY_MIGRATION_MAP: Dict[str, str] = {
+    "Energy": "Energy and Heat",
+    "Water": "Water, Air and Climate",
+    "Food & Agriculture": "Food Systems and Agriculture",
+    "Shelter & Construction": "Shelter and Buildings",
+    "Waste Management": "Waste, Recycling and Bioprocessing",
+    "Transportation": "Mobility and Transport",
+    "Health & Sanitation": "Health, Sanitation and Care",
+    "Communication": "Household and Personal Items",
+    "Education": "Tools, Fabrication and Manufacturing",
+    "Manufacturing": "Tools, Fabrication and Manufacturing",
+}
+
+
+class CategoryItem(BaseModel):
+    """A single category with its subcategories."""
+    primary: str
+    subcategories: List[str]
+    color: str
+
+
+class CategoriesResponse(BaseModel):
+    """Response model for hierarchical categories endpoint."""
+    categories: List[CategoryItem]
 
 SCALING_POTENTIALS = ["pilot", "local", "regional", "global"]
 
@@ -77,9 +185,26 @@ async def get_asset_types() -> List[str]:
 
 
 @router.get("/categories")
-async def get_categories() -> List[str]:
+async def get_categories() -> CategoriesResponse:
     """
-    Returns available categories.
+    Returns available categories with their subcategories and colors.
+    Returns hierarchical structure for multi-category selection.
+    """
+    categories = [
+        CategoryItem(
+            primary=primary,
+            subcategories=subcategories,
+            color=CATEGORY_COLORS.get(primary, "gray")
+        )
+        for primary, subcategories in CATEGORY_HIERARCHY.items()
+    ]
+    return CategoriesResponse(categories=categories)
+
+
+@router.get("/categories/flat")
+async def get_categories_flat() -> List[str]:
+    """
+    Returns flat list of primary category names (legacy endpoint).
     """
     return CATEGORIES
 

@@ -45,16 +45,26 @@ def increment_version(version: str) -> str:
 def extract_scalar_columns(data: dict) -> dict:
     """
     Extract scalar columns from the full EdenAsset data for indexed columns.
+    For categories, derives the legacy 'category' field from the first primary category.
     """
     basic_info = data.get("basic_information", {}) or {}
     system_meta = data.get("system_meta", {}) or {}
     contributor = data.get("contributor", {}) or {}
     
+    # Extract primary category from new categories structure for backwards compat
+    # If new categories array exists, use first primary; otherwise fall back to legacy category field
+    categories = basic_info.get("categories", [])
+    if categories and len(categories) > 0:
+        first_category = categories[0] if isinstance(categories[0], dict) else {}
+        category = first_category.get("primary", basic_info.get("category"))
+    else:
+        category = basic_info.get("category")
+    
     return {
         "asset_type": data.get("asset_type"),
         "status": system_meta.get("status", "draft"),
         "submission_status": contributor.get("submission_status"),
-        "category": basic_info.get("category"),
+        "category": category,
         "scaling_potential": basic_info.get("scaling_potential"),
         "company_name": basic_info.get("company_name"),
         "creator_name": basic_info.get("creator_name"),
@@ -745,7 +755,13 @@ async def list_assets(
         conditions.append(EdenAsset.asset_type == asset_type)
     
     if category:
-        conditions.append(EdenAsset.category == category)
+        # Filter by primary category - check both new categories array and legacy category field
+        # Use JSONB containment to check if any category in the array has this primary
+        category_condition = or_(
+            EdenAsset.category == category,
+            EdenAsset.data["basic_information"]["categories"].contains([{"primary": category}])
+        )
+        conditions.append(category_condition)
     
     if status and not approved_only:
         conditions.append(EdenAsset.status == status)
@@ -763,7 +779,13 @@ async def list_assets(
         conditions.append(EdenAsset.creator_name.ilike(f"%{creator_name}%"))
     
     if subcategory:
-        conditions.append(EdenAsset.data["basic_information"]["subcategory"].astext == subcategory)
+        # Filter by subcategory - check both new categories array and legacy subcategory field
+        # For new structure, need to check if any category contains this subcategory
+        subcategory_condition = or_(
+            EdenAsset.data["basic_information"]["subcategory"].astext == subcategory,
+            EdenAsset.data["basic_information"]["categories"].op('@>')('[{"subcategories": ["' + subcategory + '"]}]')
+        )
+        conditions.append(subcategory_condition)
     
     if climate_zone:
         conditions.append(EdenAsset.data["deployment"]["climate_zones"].contains([climate_zone]))

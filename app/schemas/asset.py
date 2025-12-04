@@ -30,7 +30,16 @@ class SystemMeta(BaseModel):
     internal_reviewer_notes: Optional[str] = None
 
 
+class CategorySelection(BaseModel):
+    """A single category selection with primary category and optional subcategories."""
+    primary: str
+    subcategories: Optional[List[str]] = []
+
+
 class BasicInformation(BaseModel):
+    # New multi-category structure (1-4 primary categories with optional subcategories)
+    categories: Optional[List[CategorySelection]] = []
+    # Legacy single category fields (kept for backwards compatibility, derived from first category)
     category: Optional[str] = None
     subcategory: Optional[str] = None
     asset_name: Optional[str] = None
