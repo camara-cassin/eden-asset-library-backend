@@ -1,3 +1,4 @@
+import ssl
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import declarative_base
 from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
@@ -5,17 +6,17 @@ from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 from app.core.config import settings
 
 
-def fix_database_url_for_asyncpg(url: str) -> str:
+def fix_database_url_for_asyncpg(url: str) -> tuple[str, bool]:
     """
-    Convert incompatible parameters for asyncpg compatibility.
+    Remove incompatible parameters for asyncpg compatibility.
     asyncpg doesn't support sslmode, channel_binding, and other libpq-specific params
     as query string parameters - they get passed as kwargs which asyncpg rejects.
-    Instead, we strip them and use ssl=true for TLS connections.
+    Returns the cleaned URL and whether SSL should be enabled.
     """
     parsed = urlparse(url)
     query_params = parse_qs(parsed.query)
     
-    incompatible_params = ['sslmode', 'channel_binding', 'sslrootcert', 'sslcert', 'sslkey']
+    incompatible_params = ['sslmode', 'channel_binding', 'sslrootcert', 'sslcert', 'sslkey', 'ssl']
     has_ssl = False
     
     for param in incompatible_params:
@@ -24,18 +25,27 @@ def fix_database_url_for_asyncpg(url: str) -> str:
                 sslmode = query_params[param][0]
                 if sslmode in ('require', 'verify-ca', 'verify-full'):
                     has_ssl = True
+            elif param == 'ssl':
+                if query_params[param][0].lower() == 'true':
+                    has_ssl = True
             query_params.pop(param)
-    
-    if has_ssl:
-        query_params['ssl'] = ['true']
     
     new_query = urlencode(query_params, doseq=True)
     new_parsed = parsed._replace(query=new_query)
-    return urlunparse(new_parsed)
+    return urlunparse(new_parsed), has_ssl
 
 
-database_url = fix_database_url_for_asyncpg(settings.DATABASE_URL)
-engine = create_async_engine(database_url, echo=False)
+database_url, needs_ssl = fix_database_url_for_asyncpg(settings.DATABASE_URL)
+
+# Create SSL context for asyncpg if needed
+connect_args = {}
+if needs_ssl:
+    ssl_context = ssl.create_default_context()
+    ssl_context.check_hostname = False
+    ssl_context.verify_mode = ssl.CERT_NONE
+    connect_args["ssl"] = ssl_context
+
+engine = create_async_engine(database_url, echo=False, connect_args=connect_args)
 async_session_maker = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 Base = declarative_base()
