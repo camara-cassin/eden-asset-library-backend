@@ -218,6 +218,11 @@ async def update_asset(
             )
     
     update_dict = updates.model_dump(exclude_none=True)
+    
+    # Ignore any contributor updates from client - contributor info is managed by EDEN
+    if "contributor" in update_dict:
+        del update_dict["contributor"]
+    
     updated_asset, errors = await asset_service.update_asset(db, asset, update_dict)
     
     if errors:
