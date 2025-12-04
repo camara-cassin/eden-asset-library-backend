@@ -21,6 +21,7 @@ httpx = "^0.28.1"
 python-jose = {extras = ["cryptography"], version = "^3.3.0"}
 passlib = {extras = ["bcrypt"], version = "^1.7.4"}
 bcrypt = "^4.0.1"
+aiofiles = "^25.1.0"
 
 
 [tool.poetry.group.dev.dependencies]

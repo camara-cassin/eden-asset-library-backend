@@ -1,14 +1,16 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Form
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Optional
+from typing import Optional, List
 from uuid import UUID
 
 from app.db.database import get_db
 from app.schemas.asset import (
     AssetCreate, AssetUpdate, AssetResponse, PaginatedResponse,
-    ErrorResponse, ReviewRequest, RejectRequest, FileAttachRequest, AIExtractRequest
+    ErrorResponse, ReviewRequest, RejectRequest, FileAttachRequest, AIExtractRequest,
+    FileUploadResponse
 )
 from app.services import asset_service
+from app.services.file_storage import save_upload, get_documentation_field, is_array_field
 from app.core.security import get_current_user, get_current_user_optional, require_admin
 from app.models.user import User, UserRole
 
@@ -428,6 +430,7 @@ async def ai_extract(
     """
     Trigger AI extraction (stub mode when AI_ENABLED is false).
     Requires authentication.
+    Accepts optional website_url for scraping in addition to uploaded documents.
     """
     asset = await asset_service.get_asset_by_id(db, asset_id)
     
@@ -444,6 +447,116 @@ async def ai_extract(
         )
     
     sources = request.sources if request and request.sources else {}
-    updated_asset = await asset_service.ai_extract(db, asset, sources)
+    website_url = request.website_url if request else None
+    use_uploaded_docs = request.use_uploaded_docs if request else True
+    
+    updated_asset = await asset_service.ai_extract(
+        db, asset, sources, website_url=website_url, use_uploaded_docs=use_uploaded_docs
+    )
     
     return format_asset_response(updated_asset)
+
+
+@router.post("/{asset_id}/uploads")
+async def upload_files(
+    asset_id: str,
+    files: List[UploadFile] = File(...),
+    doc_type: str = Form(default="general"),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Upload multiple files to an asset's documentation_uploads.
+    Requires authentication.
+    
+    doc_type options:
+    - technical_spec: Technical specification sheets (PDF)
+    - cad_files: CAD files (DWG, DXF, STEP, etc.)
+    - engineering_drawings: Engineering drawings (PDF, images)
+    - manuals: Build manuals and instructions (PDF)
+    - images: Product images (JPG, PNG, etc.)
+    - general: Other documents
+    
+    Note: On Fly.io, local storage is ephemeral. For production, use S3/R2.
+    """
+    asset = await asset_service.get_asset_by_id(db, asset_id)
+    
+    if not asset:
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "error": {
+                    "code": "not_found",
+                    "message": f"Asset with id {asset_id} not found",
+                    "details": {}
+                }
+            }
+        )
+    
+    # Check authorization: admin can upload to any, contributor can only upload to their own
+    if current_user.role != UserRole.admin:
+        if asset.contributor_id != str(current_user.id):
+            raise HTTPException(
+                status_code=403,
+                detail={
+                    "error": {
+                        "code": "forbidden",
+                        "message": "You can only upload files to your own assets",
+                        "details": {}
+                    }
+                }
+            )
+    
+    uploaded_files: List[FileUploadResponse] = []
+    errors: List[str] = []
+    
+    for file in files:
+        file_url, error = await save_upload(asset_id, file, doc_type)
+        
+        if error:
+            errors.append(f"{file.filename}: {error}")
+        elif file_url:
+            field = get_documentation_field(doc_type)
+            uploaded_files.append(FileUploadResponse(
+                url=file_url,
+                filename=file.filename or "unknown",
+                doc_type=doc_type,
+                field=field
+            ))
+    
+    if not uploaded_files and errors:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": {
+                    "code": "upload_failed",
+                    "message": "All file uploads failed",
+                    "details": {"errors": errors}
+                }
+            }
+        )
+    
+    # Update asset's documentation_uploads with the new file URLs
+    data = asset.data.copy()
+    if "documentation_uploads" not in data:
+        data["documentation_uploads"] = {}
+    
+    for uploaded in uploaded_files:
+        field = uploaded.field
+        if is_array_field(field):
+            if field not in data["documentation_uploads"]:
+                data["documentation_uploads"][field] = []
+            data["documentation_uploads"][field].append(uploaded.url)
+        else:
+            data["documentation_uploads"][field] = uploaded.url
+    
+    # Save the updated asset
+    asset.data = data
+    await db.commit()
+    await db.refresh(asset)
+    
+    return {
+        "uploaded": [f.model_dump() for f in uploaded_files],
+        "errors": errors if errors else None,
+        "asset": format_asset_response(asset)
+    }

@@ -472,8 +472,21 @@
             "properties": {
               "input_type": { "type": "string" },
               "quantity": { "type": "number" },
+              "unit": { 
+                "type": "string",
+                "description": "Unit of measurement (kW, gallons, tons, lumens, liters, cubic_meters, etc.)"
+              },
+              "time_period": {
+                "type": "string",
+                "enum": ["instant", "per_minute", "per_hour", "per_day", "per_week", "per_month", "per_year", "one_time"],
+                "description": "Time period for the quantity"
+              },
               "time_profile": { "type": "string" },
-              "quality_spec": { "type": "string" }
+              "quality_spec": { "type": "string" },
+              "estimated_financial_value_usd": { 
+                "type": "number",
+                "description": "Estimated financial value in USD (manual entry or AI-populated)"
+              }
             }
           }
         },
@@ -484,8 +497,21 @@
             "properties": {
               "output_type": { "type": "string" },
               "quantity": { "type": "number" },
+              "unit": { 
+                "type": "string",
+                "description": "Unit of measurement (kW, gallons, tons, lumens, liters, cubic_meters, etc.)"
+              },
+              "time_period": {
+                "type": "string",
+                "enum": ["instant", "per_minute", "per_hour", "per_day", "per_week", "per_month", "per_year", "one_time"],
+                "description": "Time period for the quantity"
+              },
               "quality_spec": { "type": "string" },
-              "variability_profile": { "type": "string" }
+              "variability_profile": { "type": "string" },
+              "estimated_financial_value_usd": { 
+                "type": "number",
+                "description": "Estimated financial value in USD based on quantity, unit, and time_period"
+              }
             }
           }
         },

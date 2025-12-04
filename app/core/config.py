@@ -22,6 +22,10 @@ class Settings(BaseSettings):
     INITIAL_ADMIN_EMAIL: Optional[str] = None
     INITIAL_ADMIN_PASSWORD: Optional[str] = None
     
+    # File uploads
+    UPLOAD_DIR: str = "uploads"
+    MAX_UPLOAD_SIZE_MB: int = 50
+    
     class Config:
         env_file = ".env"
         case_sensitive = True

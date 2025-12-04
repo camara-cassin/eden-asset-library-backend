@@ -340,12 +340,12 @@ async def attach_file_url(db: AsyncSession, asset: EdenAsset, target: str, url: 
     return asset, None
 
 
-def _collect_source_urls(data: dict, sources: dict) -> List[str]:
+def _collect_source_urls(data: dict, sources: dict, website_url: Optional[str] = None, use_uploaded_docs: bool = True) -> List[str]:
     """Collect all source URLs from documentation_uploads and extra sources."""
     urls = []
     
     # Collect from documentation_uploads if use_uploaded_docs is true
-    if sources.get("use_uploaded_docs", False):
+    if use_uploaded_docs or sources.get("use_uploaded_docs", False):
         doc_uploads = data.get("documentation_uploads", {})
         url_fields = [
             "cad_file_urls", "bim_file_urls", "engineering_drawings_urls",
@@ -378,6 +378,10 @@ def _collect_source_urls(data: dict, sources: dict) -> List[str]:
     if isinstance(extra_web_urls, list):
         urls.extend(extra_web_urls)
     
+    # Add website_url if provided
+    if website_url:
+        urls.append(website_url)
+    
     return urls
 
 
@@ -394,10 +398,23 @@ def _apply_field_updates(data: dict, field_updates: dict) -> dict:
     return data
 
 
-async def ai_extract(db: AsyncSession, asset: EdenAsset, sources: dict) -> EdenAsset:
+async def ai_extract(
+    db: AsyncSession, 
+    asset: EdenAsset, 
+    sources: dict,
+    website_url: Optional[str] = None,
+    use_uploaded_docs: bool = True
+) -> EdenAsset:
     """
     AI extraction. When AI_ENABLED is false, marks as complete with stub entry.
     When AI_ENABLED is true, calls the AI microservice to extract data.
+    
+    Args:
+        db: Database session
+        asset: The asset to extract data for
+        sources: Additional source configuration
+        website_url: Optional website URL to scrape for data
+        use_uploaded_docs: Whether to include uploaded documents in extraction
     """
     import httpx
     
@@ -420,10 +437,17 @@ async def ai_extract(db: AsyncSession, asset: EdenAsset, sources: dict) -> EdenA
             "source_ref": "ai_extract_stub",
             "notes": "AI extraction not yet implemented"
         })
+        # Record the website_url if provided
+        if website_url:
+            data["ai_assistance"]["sources_used"].append({
+                "source_type": "web_search",
+                "source_ref": website_url,
+                "notes": "Website URL provided for extraction (stub mode)"
+            })
     else:
         # Real AI mode - call the AI microservice
         try:
-            source_urls = _collect_source_urls(data, sources)
+            source_urls = _collect_source_urls(data, sources, website_url=website_url, use_uploaded_docs=use_uploaded_docs)
             
             if not source_urls:
                 data["ai_assistance"]["prefill_status"] = "failed"

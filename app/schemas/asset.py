@@ -144,15 +144,21 @@ class PlanConfiguration(BaseModel):
 class InputItem(BaseModel):
     input_type: Optional[str] = None
     quantity: Optional[float] = None
+    unit: Optional[str] = None  # kW, gallons, tons, lumens, liters, cubic_meters, etc.
+    time_period: Optional[str] = None  # instant, hour, day, month, year
     time_profile: Optional[str] = None
     quality_spec: Optional[str] = None
+    estimated_financial_value_usd: Optional[float] = None
 
 
 class OutputItem(BaseModel):
     output_type: Optional[str] = None
     quantity: Optional[float] = None
+    unit: Optional[str] = None  # kW, gallons, tons, lumens, liters, cubic_meters, etc.
+    time_period: Optional[str] = None  # instant, hour, day, month, year
     quality_spec: Optional[str] = None
     variability_profile: Optional[str] = None
+    estimated_financial_value_usd: Optional[float] = None
 
 
 class FinancialOutputValue(BaseModel):
@@ -488,9 +494,19 @@ class FileAttachRequest(BaseModel):
 
 class AIExtractRequest(BaseModel):
     sources: Optional[dict] = None
+    website_url: Optional[str] = None
+    use_uploaded_docs: Optional[bool] = True
 
 
 class AIExtractSources(BaseModel):
     use_uploaded_docs: Optional[bool] = True
     extra_doc_urls: Optional[List[str]] = []
     extra_web_urls: Optional[List[str]] = []
+    website_url: Optional[str] = None
+
+
+class FileUploadResponse(BaseModel):
+    url: str
+    filename: str
+    doc_type: str
+    field: str
