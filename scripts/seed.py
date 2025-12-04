@@ -2,6 +2,7 @@
 """
 Seed script for EDEN Asset Library.
 Creates three example assets: one physical, one plan, and one hybrid.
+Also creates an initial admin user if INITIAL_ADMIN_EMAIL and INITIAL_ADMIN_PASSWORD are set.
 """
 import asyncio
 import sys
@@ -11,10 +12,13 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from datetime import datetime
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from sqlalchemy import select
 
 from app.core.config import settings
+from app.core.security import get_password_hash
 from app.db.database import Base
 from app.services.asset_service import create_asset
+from app.models.user import User, UserRole
 
 
 PHYSICAL_ASSET = {
@@ -329,8 +333,37 @@ HYBRID_ASSET = {
 }
 
 
+async def seed_admin_user(session: AsyncSession):
+    """Create initial admin user if env vars are set and no admin exists."""
+    if not settings.INITIAL_ADMIN_EMAIL or not settings.INITIAL_ADMIN_PASSWORD:
+        print("INITIAL_ADMIN_EMAIL or INITIAL_ADMIN_PASSWORD not set, skipping admin user creation")
+        return
+    
+    # Check if admin already exists
+    result = await session.execute(
+        select(User).where(User.role == UserRole.admin)
+    )
+    existing_admin = result.scalar_one_or_none()
+    
+    if existing_admin:
+        print(f"Admin user already exists: {existing_admin.email}")
+        return
+    
+    # Create admin user
+    admin_user = User(
+        name="Admin",
+        email=settings.INITIAL_ADMIN_EMAIL,
+        password_hash=get_password_hash(settings.INITIAL_ADMIN_PASSWORD),
+        role=UserRole.admin
+    )
+    session.add(admin_user)
+    await session.commit()
+    await session.refresh(admin_user)
+    print(f"Created admin user: {admin_user.email} (ID: {admin_user.id})")
+
+
 async def seed_database():
-    """Create example assets in the database."""
+    """Create example assets and admin user in the database."""
     engine = create_async_engine(settings.DATABASE_URL, echo=True)
     
     async with engine.begin() as conn:
@@ -339,6 +372,11 @@ async def seed_database():
     async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
     
     async with async_session() as session:
+        # Seed admin user first
+        print("=== Seeding Admin User ===")
+        await seed_admin_user(session)
+        
+        print("\n=== Seeding Assets ===")
         print("Creating Physical Asset: Solar Roof Tile X100...")
         physical_asset, errors = await create_asset(session, PHYSICAL_ASSET)
         if errors:

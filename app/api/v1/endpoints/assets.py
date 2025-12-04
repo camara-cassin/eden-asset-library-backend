@@ -9,6 +9,8 @@ from app.schemas.asset import (
     ErrorResponse, ReviewRequest, RejectRequest, FileAttachRequest, AIExtractRequest
 )
 from app.services import asset_service
+from app.core.security import get_current_user, get_current_user_optional, require_admin
+from app.models.user import User, UserRole
 
 router = APIRouter()
 
@@ -34,13 +36,22 @@ def format_asset_list_item(asset) -> dict:
 @router.post("", status_code=201)
 async def create_asset(
     asset_data: AssetCreate,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Create a new EdenAsset in draft status.
+    Requires authentication. Auto-sets contributor info from current user.
     Minimum required fields: asset_type, basic_information.asset_name, basic_information.category
     """
     input_dict = asset_data.model_dump(exclude_none=True)
+    
+    # Auto-set contributor info from current user
+    if "contributor" not in input_dict:
+        input_dict["contributor"] = {}
+    input_dict["contributor"]["name"] = current_user.name
+    input_dict["contributor"]["email"] = current_user.email
+    input_dict["contributor"]["contributor_id"] = str(current_user.id)
     
     basic_info = input_dict.get("basic_information", {})
     if not basic_info.get("asset_name"):
@@ -100,11 +111,16 @@ async def list_assets(
     page_size: int = Query(default=20, ge=1, le=100),
     sort_by: str = Query(default="created_at", pattern="^(created_at|updated_at|eden_positive_impact_points)$"),
     sort_dir: str = Query(default="desc", pattern="^(asc|desc)$"),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Search and filter assets with pagination.
+    Requires authentication. Admin sees all assets, contributors see only their own.
     """
+    # Filter by contributor_id for non-admin users
+    contributor_id = None if current_user.role == UserRole.admin else str(current_user.id)
+    
     assets, total = await asset_service.list_assets(
         db=db,
         q=q,
@@ -122,6 +138,7 @@ async def list_assets(
         page_size=page_size,
         sort_by=sort_by,
         sort_dir=sort_dir,
+        contributor_id=contributor_id,
     )
     
     return {
@@ -161,10 +178,12 @@ async def get_asset(
 async def update_asset(
     asset_id: str,
     updates: AssetUpdate,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Update asset with partial deep merge.
+    Requires authentication. Admin can edit any asset, contributors can only edit their own.
     """
     asset = await asset_service.get_asset_by_id(db, asset_id)
     
@@ -179,6 +198,20 @@ async def update_asset(
                 }
             }
         )
+    
+    # Check authorization: admin can edit any, contributor can only edit their own
+    if current_user.role != UserRole.admin:
+        if asset.contributor_id != str(current_user.id):
+            raise HTTPException(
+                status_code=403,
+                detail={
+                    "error": {
+                        "code": "forbidden",
+                        "message": "You can only edit your own assets",
+                        "details": {}
+                    }
+                }
+            )
     
     update_dict = updates.model_dump(exclude_none=True)
     updated_asset, errors = await asset_service.update_asset(db, asset, update_dict)
@@ -227,10 +260,12 @@ async def delete_asset(
 @router.post("/{asset_id}/submit")
 async def submit_asset(
     asset_id: str,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Submit asset for review with strict validation.
+    Requires authentication. Contributor can submit their own, admin can submit any.
     """
     asset = await asset_service.get_asset_by_id(db, asset_id)
     
@@ -245,6 +280,20 @@ async def submit_asset(
                 }
             }
         )
+    
+    # Check authorization: contributor can submit their own, admin can submit any
+    if current_user.role != UserRole.admin:
+        if asset.contributor_id != str(current_user.id):
+            raise HTTPException(
+                status_code=403,
+                detail={
+                    "error": {
+                        "code": "forbidden",
+                        "message": "You can only submit your own assets",
+                        "details": {}
+                    }
+                }
+            )
     
     updated_asset, errors = await asset_service.submit_for_review(db, asset)
     
@@ -267,10 +316,12 @@ async def submit_asset(
 async def approve_asset(
     asset_id: str,
     request: Optional[ReviewRequest] = None,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_admin)
 ):
     """
-    Approve an asset.
+    Approve an asset. Admin only.
+    Sets status="approved" and submission_status="approved".
     """
     asset = await asset_service.get_asset_by_id(db, asset_id)
     
@@ -286,7 +337,7 @@ async def approve_asset(
             }
         )
     
-    reviewer_id = request.reviewer_id if request else None
+    reviewer_id = str(current_user.id)
     review_notes = request.review_notes if request else None
     
     updated_asset = await asset_service.approve_asset(db, asset, reviewer_id, review_notes)
@@ -297,10 +348,12 @@ async def approve_asset(
 async def reject_asset(
     asset_id: str,
     request: RejectRequest,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_admin)
 ):
     """
-    Reject an asset.
+    Reject an asset. Admin only.
+    Sets submission_status="changes_requested". Accepts reject reason.
     """
     asset = await asset_service.get_asset_by_id(db, asset_id)
     
@@ -316,7 +369,8 @@ async def reject_asset(
             }
         )
     
-    updated_asset = await asset_service.reject_asset(db, asset, request.reviewer_id, request.reason)
+    reviewer_id = str(current_user.id)
+    updated_asset = await asset_service.reject_asset(db, asset, reviewer_id, request.reason)
     return format_asset_response(updated_asset)
 
 
@@ -324,10 +378,12 @@ async def reject_asset(
 async def attach_file(
     asset_id: str,
     request: FileAttachRequest,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Attach a file URL to the asset's documentation_uploads.
+    Requires authentication.
     """
     asset = await asset_service.get_asset_by_id(db, asset_id)
     
@@ -364,10 +420,12 @@ async def attach_file(
 async def ai_extract(
     asset_id: str,
     request: Optional[AIExtractRequest] = None,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Trigger AI extraction (stub mode when AI_ENABLED is false).
+    Requires authentication.
     """
     asset = await asset_service.get_asset_by_id(db, asset_id)
     
