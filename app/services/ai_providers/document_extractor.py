@@ -218,41 +218,14 @@ async def extract_text_from_url(url: str) -> Tuple[str, Optional[str]]:
             page_title = title_tag.get_text(strip=True) if title_tag else "No title"
             logger.info(f"Page title: {page_title}")
             
-            # Remove script, style, and navigation elements
-            for element in soup(['script', 'style', 'nav', 'footer', 'header', 'aside', 'noscript', 'iframe']):
-                element.decompose()
-            
             # Try multiple strategies to find product content
             text_parts = []
-            
-            # Strategy 1: Look for product-specific containers (common in e-commerce)
-            product_selectors = [
-                # Common product page selectors
-                {'class_': re.compile(r'product[-_]?(description|info|details|content|summary)', re.I)},
-                {'class_': re.compile(r'(description|details|specs|specifications)[-_]?(content|text|body)?', re.I)},
-                {'id': re.compile(r'product[-_]?(description|info|details|content)', re.I)},
-                {'id': re.compile(r'(description|details|specs|specifications)', re.I)},
-                # Shopify-specific selectors
-                {'class_': 'product-single__description'},
-                {'class_': 'product__description'},
-                {'class_': 'product-description'},
-                # Generic content selectors
-                {'class_': re.compile(r'(main[-_]?content|content[-_]?area|page[-_]?content)', re.I)},
-                {'itemprop': 'description'},
-            ]
-            
-            for selector in product_selectors:
-                elements = soup.find_all(**selector)
-                for elem in elements:
-                    elem_text = elem.get_text(separator='\n', strip=True)
-                    if elem_text and len(elem_text) > 50:  # Only include substantial text
-                        text_parts.append(elem_text)
-                        logger.info(f"Found product content with selector {selector}: {len(elem_text)} chars")
-            
-            # Strategy 2: Look for Shopify-style product JSON (script type="application/json")
-            # Shopify stores product data in <script type="application/json" id="ProductJson-...">
             import json
+            
+            # Strategy 1: Extract JSON from script tags BEFORE removing them
+            # Shopify stores product data in <script type="application/json" id="ProductJson-...">
             json_scripts = soup.find_all('script', type='application/json')
+            logger.info(f"Found {len(json_scripts)} application/json script tags")
             for script in json_scripts:
                 script_id = script.get('id', '')
                 # Look for ProductJson or similar product data scripts
@@ -306,26 +279,55 @@ async def extract_text_from_url(url: str) -> Tuple[str, Optional[str]]:
                     except (json.JSONDecodeError, TypeError) as e:
                         logger.debug(f"Could not parse Shopify product JSON: {e}")
             
-            # Strategy 3: Look for structured data (JSON-LD)
+            # Strategy 2: Extract JSON-LD structured data BEFORE removing scripts
             json_ld_scripts = soup.find_all('script', type='application/ld+json')
             for script in json_ld_scripts:
                 try:
-                    data = json.loads(script.string)
-                    # Handle both single objects and arrays
-                    items = data if isinstance(data, list) else [data]
-                    for item in items:
-                        if isinstance(item, dict):
-                            # Extract product description from structured data
-                            if item.get('@type') == 'Product' or 'Product' in str(item.get('@type', '')):
-                                desc = item.get('description', '')
-                                if desc:
-                                    text_parts.append(f"Product Description: {desc}")
-                                    logger.info(f"Found JSON-LD product description: {len(desc)} chars")
-                                name = item.get('name', '')
-                                if name:
-                                    text_parts.append(f"Product Name: {name}")
+                    if script.string:
+                        data = json.loads(script.string)
+                        # Handle both single objects and arrays
+                        items = data if isinstance(data, list) else [data]
+                        for item in items:
+                            if isinstance(item, dict):
+                                # Extract product description from structured data
+                                if item.get('@type') == 'Product' or 'Product' in str(item.get('@type', '')):
+                                    desc = item.get('description', '')
+                                    if desc:
+                                        text_parts.append(f"Product Description: {desc}")
+                                        logger.info(f"Found JSON-LD product description: {len(desc)} chars")
+                                    name = item.get('name', '')
+                                    if name:
+                                        text_parts.append(f"Product Name: {name}")
                 except (json.JSONDecodeError, TypeError) as e:
                     logger.debug(f"Could not parse JSON-LD: {e}")
+            
+            # NOW remove script, style, and navigation elements for HTML parsing
+            for element in soup(['script', 'style', 'nav', 'footer', 'header', 'aside', 'noscript', 'iframe']):
+                element.decompose()
+            
+            # Strategy 3: Look for product-specific containers (common in e-commerce)
+            product_selectors = [
+                # Common product page selectors
+                {'class_': re.compile(r'product[-_]?(description|info|details|content|summary)', re.I)},
+                {'class_': re.compile(r'(description|details|specs|specifications)[-_]?(content|text|body)?', re.I)},
+                {'id': re.compile(r'product[-_]?(description|info|details|content)', re.I)},
+                {'id': re.compile(r'(description|details|specs|specifications)', re.I)},
+                # Shopify-specific selectors
+                {'class_': 'product-single__description'},
+                {'class_': 'product__description'},
+                {'class_': 'product-description'},
+                # Generic content selectors
+                {'class_': re.compile(r'(main[-_]?content|content[-_]?area|page[-_]?content)', re.I)},
+                {'itemprop': 'description'},
+            ]
+            
+            for selector in product_selectors:
+                elements = soup.find_all(**selector)
+                for elem in elements:
+                    elem_text = elem.get_text(separator='\n', strip=True)
+                    if elem_text and len(elem_text) > 50:  # Only include substantial text
+                        text_parts.append(elem_text)
+                        logger.info(f"Found product content with selector {selector}: {len(elem_text)} chars")
             
             # Strategy 4: Look for meta description
             meta_desc = soup.find('meta', attrs={'name': 'description'})
