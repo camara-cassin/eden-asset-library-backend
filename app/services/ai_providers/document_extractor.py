@@ -193,47 +193,140 @@ async def extract_text_from_url(url: str) -> Tuple[str, Optional[str]]:
         Tuple of (extracted text, error message if any)
     """
     try:
+        logger.info(f"Starting URL text extraction for: {url}")
+        
         async with httpx.AsyncClient(
             timeout=URL_FETCH_TIMEOUT, 
             follow_redirects=True,
             headers={
-                'User-Agent': 'Mozilla/5.0 (compatible; EdenAssetLibrary/1.0; +https://eden.example.com)'
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.5',
             }
         ) as client:
             response = await client.get(url)
             response.raise_for_status()
             
             html_content = response.text
+            logger.info(f"Fetched {len(html_content)} bytes of HTML from {url}")
             
             # Parse HTML and extract text
             soup = BeautifulSoup(html_content, 'html.parser')
             
-            # Remove script and style elements
-            for element in soup(['script', 'style', 'nav', 'footer', 'header', 'aside']):
+            # Log the page title for debugging
+            title_tag = soup.find('title')
+            page_title = title_tag.get_text(strip=True) if title_tag else "No title"
+            logger.info(f"Page title: {page_title}")
+            
+            # Remove script, style, and navigation elements
+            for element in soup(['script', 'style', 'nav', 'footer', 'header', 'aside', 'noscript', 'iframe']):
                 element.decompose()
             
-            # Get text from main content areas
-            main_content = soup.find('main') or soup.find('article') or soup.find('body')
+            # Try multiple strategies to find product content
+            text_parts = []
             
-            if main_content:
-                # Get text and clean it up
-                text = main_content.get_text(separator='\n', strip=True)
+            # Strategy 1: Look for product-specific containers (common in e-commerce)
+            product_selectors = [
+                # Common product page selectors
+                {'class_': re.compile(r'product[-_]?(description|info|details|content|summary)', re.I)},
+                {'class_': re.compile(r'(description|details|specs|specifications)[-_]?(content|text|body)?', re.I)},
+                {'id': re.compile(r'product[-_]?(description|info|details|content)', re.I)},
+                {'id': re.compile(r'(description|details|specs|specifications)', re.I)},
+                # Shopify-specific selectors
+                {'class_': 'product-single__description'},
+                {'class_': 'product__description'},
+                {'class_': 'product-description'},
+                # Generic content selectors
+                {'class_': re.compile(r'(main[-_]?content|content[-_]?area|page[-_]?content)', re.I)},
+                {'itemprop': 'description'},
+            ]
+            
+            for selector in product_selectors:
+                elements = soup.find_all(**selector)
+                for elem in elements:
+                    elem_text = elem.get_text(separator='\n', strip=True)
+                    if elem_text and len(elem_text) > 50:  # Only include substantial text
+                        text_parts.append(elem_text)
+                        logger.info(f"Found product content with selector {selector}: {len(elem_text)} chars")
+            
+            # Strategy 2: Look for structured data (JSON-LD)
+            json_ld_scripts = soup.find_all('script', type='application/ld+json')
+            for script in json_ld_scripts:
+                try:
+                    import json
+                    data = json.loads(script.string)
+                    # Handle both single objects and arrays
+                    items = data if isinstance(data, list) else [data]
+                    for item in items:
+                        if isinstance(item, dict):
+                            # Extract product description from structured data
+                            if item.get('@type') == 'Product' or 'Product' in str(item.get('@type', '')):
+                                desc = item.get('description', '')
+                                if desc:
+                                    text_parts.append(f"Product Description: {desc}")
+                                    logger.info(f"Found JSON-LD product description: {len(desc)} chars")
+                                name = item.get('name', '')
+                                if name:
+                                    text_parts.append(f"Product Name: {name}")
+                except (json.JSONDecodeError, TypeError) as e:
+                    logger.debug(f"Could not parse JSON-LD: {e}")
+            
+            # Strategy 3: Look for meta description
+            meta_desc = soup.find('meta', attrs={'name': 'description'})
+            if meta_desc and meta_desc.get('content'):
+                meta_content = meta_desc.get('content', '')
+                if meta_content and len(meta_content) > 20:
+                    text_parts.append(f"Page Description: {meta_content}")
+                    logger.info(f"Found meta description: {len(meta_content)} chars")
+            
+            # Strategy 4: Fall back to main content areas
+            if not text_parts:
+                logger.info("No product-specific content found, falling back to main content areas")
+                main_content = soup.find('main') or soup.find('article') or soup.find('body')
+                
+                if main_content:
+                    # Get text and clean it up
+                    text = main_content.get_text(separator='\n', strip=True)
+                    if text:
+                        text_parts.append(text)
+                        logger.info(f"Found main content: {len(text)} chars")
+            
+            # Combine all text parts
+            if text_parts:
+                # Remove duplicates while preserving order
+                seen = set()
+                unique_parts = []
+                for part in text_parts:
+                    # Normalize for comparison
+                    normalized = part.strip().lower()[:100]
+                    if normalized not in seen:
+                        seen.add(normalized)
+                        unique_parts.append(part)
+                
+                combined_text = "\n\n".join(unique_parts)
                 
                 # Clean up excessive whitespace
-                text = re.sub(r'\n{3,}', '\n\n', text)
-                text = re.sub(r' {2,}', ' ', text)
+                combined_text = re.sub(r'\n{3,}', '\n\n', combined_text)
+                combined_text = re.sub(r' {2,}', ' ', combined_text)
                 
-                logger.info(f"Extracted {len(text)} characters from URL: {url}")
-                return text, None
+                # Limit to reasonable size (20k chars)
+                if len(combined_text) > 20000:
+                    combined_text = combined_text[:20000] + "\n[... truncated ...]"
+                
+                logger.info(f"Successfully extracted {len(combined_text)} characters from URL: {url}")
+                return combined_text, None
             else:
-                return "", f"No content found at {url}"
+                logger.warning(f"No extractable content found at {url}")
+                return "", f"No extractable content found at {url}"
                 
     except httpx.TimeoutException:
+        logger.error(f"Timeout fetching URL: {url}")
         return "", f"Timeout fetching {url}"
     except httpx.HTTPStatusError as e:
+        logger.error(f"HTTP error {e.response.status_code} fetching URL: {url}")
         return "", f"HTTP error {e.response.status_code} fetching {url}"
     except Exception as e:
-        logger.error(f"Error extracting text from URL {url}: {e}")
+        logger.error(f"Error extracting text from URL {url}: {e}", exc_info=True)
         return "", f"Error extracting text from {url}: {str(e)}"
 
 
