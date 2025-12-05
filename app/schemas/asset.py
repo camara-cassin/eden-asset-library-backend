@@ -641,4 +641,4 @@ class FileUploadResponse(BaseModel):
     url: str
     filename: str
     doc_type: str
-    field: str
+    field: Optional[str] = None
