@@ -136,7 +136,21 @@
       "properties": {
         "photos": {
           "type": "array",
-          "items": { "type": "string" }
+          "items": { "type": "string" },
+          "description": "Legacy field - use images instead"
+        },
+        "images": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "url": { "type": "string" },
+              "caption": { "type": "string" },
+              "is_primary": { "type": "boolean" }
+            },
+            "required": ["url"]
+          },
+          "description": "Asset images with metadata"
         },
         "key_features": {
           "type": "array",
@@ -295,11 +309,26 @@
       "type": "object",
       "properties": {
         "retail_price": { "type": "number" },
+        "wholesale_price": { "type": "number" },
+        "minimum_wholesale_quantity": { "type": "number" },
         "currency": { "type": "string" },
         "price_notes": { "type": "string" },
         "estimated_lifespan_years": { "type": "number" },
         "maintenance_cost_annual": { "type": "number" },
-        "roi_notes": { "type": "string" }
+        "roi_notes": { "type": "string" },
+        "availability_type": {
+          "type": "string",
+          "enum": ["for_sale", "licensed", "open_source", "proprietary", "not_available"]
+        },
+        "generates_revenue": {
+          "type": "string",
+          "enum": ["yes", "no", "maybe"],
+          "description": "Does this product produce revenue in a typical deployment?"
+        },
+        "estimated_annual_net_profit_usd": {
+          "type": "number",
+          "description": "Estimated annual net profit in USD"
+        }
       }
     },
     "deployment": {

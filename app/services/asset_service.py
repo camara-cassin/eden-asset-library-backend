@@ -443,8 +443,16 @@ def _generate_stub_extraction_response(
     uploaded_file_ids: List[str] = []
 ) -> dict:
     """
-    Generate a realistic stub AI extraction response.
-    This simulates what a real AI service would return.
+    Generate a realistic stub AI extraction response for MVP.
+    
+    For MVP, stub mode only populates these narrative fields:
+    - basic_information.long_description
+    - overview.key_features
+    - overview.intended_use_cases
+    
+    Does NOT touch:
+    - basic_information.short_summary (leave contributor text alone)
+    - functional_io (hidden in MVP UI)
     """
     sources_used = []
     field_updates = []
@@ -473,54 +481,67 @@ def _generate_stub_extraction_response(
         sources_used.append("stub_data_source")
         notes_for_reviewer.append("No external sources provided - using placeholder data")
     
-    # Get current asset name for context
+    # Get current asset name and category for context
     basic_info = data.get("basic_information", {})
     asset_name = basic_info.get("asset_name", "Unknown Asset")
+    category = basic_info.get("category", "sustainability")
+    short_summary = basic_info.get("short_summary", "")
     
-    # Generate stub field updates based on what's missing
-    # Only add updates for fields that are empty/missing
-    
-    # Check if short_summary needs updating
-    if not basic_info.get("short_summary"):
+    # MVP: Only populate narrative fields that are empty/missing
+    # 1. long_description - detailed description for public view
+    if not basic_info.get("long_description"):
+        long_desc = f"{asset_name} is a {category.lower()} solution designed to support sustainable living and community resilience. "
+        if short_summary:
+            long_desc += f"\n\n{short_summary}\n\n"
+        long_desc += "This asset has been evaluated for its potential contribution to regenerative systems and sustainable development. "
+        long_desc += "Key benefits include reduced environmental impact, improved resource efficiency, and support for local communities. "
+        long_desc += "Please review and update this description with specific details from the product documentation."
+        
         field_updates.append({
-            "path": "basic_information.short_summary",
-            "value": f"AI-extracted summary for {asset_name}. This is a placeholder that should be reviewed and updated with accurate information from the product documentation.",
-            "confidence": 0.75,
+            "path": "basic_information.long_description",
+            "value": long_desc,
+            "confidence": 0.70,
             "source": sources_used[0] if sources_used else "stub"
         })
-        fields_prefilled.append("basic_information.short_summary")
-        notes_for_reviewer.append("Short summary was auto-generated - please review for accuracy")
+        fields_prefilled.append("basic_information.long_description")
+        notes_for_reviewer.append("Long description was auto-generated - please review and enhance with specific product details")
     
-    # Check functional_io and add example output if empty
-    functional_io = data.get("functional_io", {})
-    outputs = functional_io.get("outputs", [])
-    
-    if not outputs:
+    # 2. key_features - bullet points for public view
+    overview = data.get("overview", {})
+    if not overview.get("key_features") or len(overview.get("key_features", [])) == 0:
+        stub_features = [
+            "Designed for sustainability and environmental responsibility",
+            "Suitable for various deployment contexts and climate zones",
+            "Supports community-scale implementation",
+            "Built with consideration for long-term durability",
+            "Compatible with regenerative systems approach"
+        ]
         field_updates.append({
-            "path": "functional_io.outputs[0]",
-            "value": {
-                "output_type": "Primary Output",
-                "quantity": 100,
-                "unit": "kWh",
-                "time_period": "per_month",
-                "estimated_financial_value_usd": 12.00,
-                "quality_spec": "Standard grade",
-                "variability_profile": "Seasonal variation expected"
-            },
-            "confidence": 0.65,
+            "path": "overview.key_features",
+            "value": stub_features,
+            "confidence": 0.60,
             "source": sources_used[0] if sources_used else "stub"
         })
-        fields_prefilled.append("functional_io.outputs[0].output_type")
-        fields_prefilled.append("functional_io.outputs[0].quantity")
-        fields_prefilled.append("functional_io.outputs[0].unit")
-        fields_prefilled.append("functional_io.outputs[0].time_period")
-        fields_prefilled.append("functional_io.outputs[0].estimated_financial_value_usd")
-        notes_for_reviewer.append("Added example functional output - values are placeholders, please verify against actual specifications")
+        fields_prefilled.append("overview.key_features")
+        notes_for_reviewer.append("Key features were auto-generated - please replace with actual product features")
     
-    # Add note about economics if retail_price is missing
-    economics = data.get("economics", {})
-    if not economics.get("retail_price"):
-        notes_for_reviewer.append("Retail price not found in sources - consider adding pricing information manually")
+    # 3. intended_use_cases - bullet points for public view
+    if not overview.get("intended_use_cases") or len(overview.get("intended_use_cases", [])) == 0:
+        stub_use_cases = [
+            "Community-scale sustainable development projects",
+            "Off-grid and remote location deployments",
+            "Eco-village and intentional community infrastructure",
+            "Disaster resilience and emergency preparedness",
+            "Educational demonstrations of sustainable technology"
+        ]
+        field_updates.append({
+            "path": "overview.intended_use_cases",
+            "value": stub_use_cases,
+            "confidence": 0.60,
+            "source": sources_used[0] if sources_used else "stub"
+        })
+        fields_prefilled.append("overview.intended_use_cases")
+        notes_for_reviewer.append("Intended use cases were auto-generated - please replace with actual use cases")
     
     return {
         "field_updates": field_updates,

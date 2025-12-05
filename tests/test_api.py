@@ -104,24 +104,29 @@ FULL_PHYSICAL_ASSET = {
         "asset_name": "Solar Panel X100",
         "category": "Energy",
         "subcategory": "Solar",
-        "short_summary": "High efficiency solar panel"
+        "short_summary": "High efficiency solar panel",
+        "company_name": "SolarTech Inc",
+        "company_email": "info@solartech.com",
+        "company_website_url": "https://solartech.com",
+        "original_source_url": "https://solartech.com/products/x100"
     },
     "contributor": {
         "name": "Test User",
         "email": "test@example.com",
         "contributor_id": "user_test"
     },
-    "physical_configuration": {
-        "unit_variants": [
-            {
-                "unit_name": "Standard",
-                "dimensions": {"length": 100, "width": 50, "height": 5}
-            }
+    "overview": {
+        "images": [
+            {"url": "https://example.com/image1.jpg", "is_primary": True}
         ]
     },
-    "functional_io": {
-        "inputs": [{"name": "Sunlight", "type": "energy"}],
-        "outputs": [{"name": "Electricity", "type": "energy"}]
+    "economics": {
+        "retail_price": 299.99,
+        "availability_type": "for_sale",
+        "generates_revenue": "yes"
+    },
+    "documentation_uploads": {
+        "technical_spec_sheet_url": "https://solartech.com/specs/x100.pdf"
     }
 }
 
@@ -130,15 +135,28 @@ FULL_PLAN_ASSET = {
     "basic_information": {
         "asset_name": "DIY Water Filter",
         "category": "Water",
-        "short_summary": "Simple water filter plans"
+        "subcategory": "Filtration",
+        "short_summary": "Simple water filter plans",
+        "creator_name": "John Builder",
+        "creator_email": "john@builder.com"
     },
     "contributor": {
         "name": "Test User",
+        "email": "test@example.com",
         "contributor_id": "user_test"
     },
-    "plan_configuration": {
-        "required_skill_level": "Beginner",
-        "estimated_build_time_hours": 4
+    "overview": {
+        "images": [
+            {"url": "https://example.com/filter-image.jpg", "is_primary": True}
+        ]
+    },
+    "economics": {
+        "retail_price": 0,
+        "availability_type": "open_source",
+        "generates_revenue": "no"
+    },
+    "documentation_uploads": {
+        "technical_spec_sheet_url": "https://example.com/filter-plans.pdf"
     }
 }
 
