@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Form
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm.attributes import flag_modified
 from typing import Optional, List
 from uuid import UUID
 
@@ -650,22 +651,41 @@ async def upload_files(
             }
         )
     
-    # Update asset's documentation_uploads with the new file URLs
+    # Update asset data with the new file URLs
     data = asset.data.copy()
-    if "documentation_uploads" not in data:
-        data["documentation_uploads"] = {}
     
-    for uploaded in uploaded_files:
-        field = uploaded.field
-        if is_array_field(field):
-            if field not in data["documentation_uploads"]:
-                data["documentation_uploads"][field] = []
-            data["documentation_uploads"][field].append(uploaded.url)
-        else:
-            data["documentation_uploads"][field] = uploaded.url
+    # Handle images separately - they go to overview.images, not documentation_uploads
+    if doc_type == "images":
+        if "overview" not in data:
+            data["overview"] = {}
+        if "images" not in data["overview"]:
+            data["overview"]["images"] = []
+        
+        for uploaded in uploaded_files:
+            # Add as AssetImage format
+            data["overview"]["images"].append({
+                "url": uploaded.url,
+                "caption": "",
+                "is_primary": len(data["overview"]["images"]) == 0  # First image is primary
+            })
+    else:
+        # Other doc types go to documentation_uploads
+        if "documentation_uploads" not in data:
+            data["documentation_uploads"] = {}
+        
+        for uploaded in uploaded_files:
+            field = uploaded.field
+            if field:  # Only add if field mapping exists
+                if is_array_field(field):
+                    if field not in data["documentation_uploads"]:
+                        data["documentation_uploads"][field] = []
+                    data["documentation_uploads"][field].append(uploaded.url)
+                else:
+                    data["documentation_uploads"][field] = uploaded.url
     
     # Save the updated asset
     asset.data = data
+    flag_modified(asset, "data")  # Ensure SQLAlchemy detects JSON change
     await db.commit()
     await db.refresh(asset)
     
