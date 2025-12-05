@@ -249,11 +249,67 @@ async def extract_text_from_url(url: str) -> Tuple[str, Optional[str]]:
                         text_parts.append(elem_text)
                         logger.info(f"Found product content with selector {selector}: {len(elem_text)} chars")
             
-            # Strategy 2: Look for structured data (JSON-LD)
+            # Strategy 2: Look for Shopify-style product JSON (script type="application/json")
+            # Shopify stores product data in <script type="application/json" id="ProductJson-...">
+            import json
+            json_scripts = soup.find_all('script', type='application/json')
+            for script in json_scripts:
+                script_id = script.get('id', '')
+                # Look for ProductJson or similar product data scripts
+                if 'product' in script_id.lower() or 'ProductJson' in script_id:
+                    try:
+                        if script.string:
+                            data = json.loads(script.string)
+                            if isinstance(data, dict):
+                                # Extract title
+                                title = data.get('title', '')
+                                if title:
+                                    text_parts.append(f"Product Name: {title}")
+                                    logger.info(f"Found Shopify product title: {title}")
+                                
+                                # Extract description (contains HTML, need to parse it)
+                                description = data.get('description', '') or data.get('content', '')
+                                if description:
+                                    # Parse HTML in description to get clean text
+                                    desc_soup = BeautifulSoup(description, 'html.parser')
+                                    desc_text = desc_soup.get_text(separator='\n', strip=True)
+                                    if desc_text:
+                                        text_parts.append(f"Product Description:\n{desc_text}")
+                                        logger.info(f"Found Shopify product description: {len(desc_text)} chars")
+                                
+                                # Extract vendor/brand
+                                vendor = data.get('vendor', '')
+                                if vendor:
+                                    text_parts.append(f"Vendor/Brand: {vendor}")
+                                
+                                # Extract product type
+                                product_type = data.get('type', '')
+                                if product_type:
+                                    text_parts.append(f"Product Type: {product_type}")
+                                
+                                # Extract SKU from variants
+                                variants = data.get('variants', [])
+                                if variants and isinstance(variants, list) and len(variants) > 0:
+                                    sku = variants[0].get('sku', '')
+                                    if sku:
+                                        text_parts.append(f"SKU: {sku}")
+                                    weight = variants[0].get('weight', 0)
+                                    if weight:
+                                        text_parts.append(f"Weight: {weight}g")
+                                
+                                # Extract tags
+                                tags = data.get('tags', [])
+                                if tags:
+                                    text_parts.append(f"Tags: {', '.join(tags)}")
+                                
+                                logger.info(f"Successfully extracted Shopify product JSON from script id={script_id}")
+                    except (json.JSONDecodeError, TypeError) as e:
+                        logger.debug(f"Could not parse Shopify product JSON: {e}")
+            
+            # Strategy 3: Look for structured data (JSON-LD)
             json_ld_scripts = soup.find_all('script', type='application/ld+json')
             for script in json_ld_scripts:
                 try:
-                    import json
                     data = json.loads(script.string)
                     # Handle both single objects and arrays
                     items = data if isinstance(data, list) else [data]
@@ -271,7 +327,7 @@ async def extract_text_from_url(url: str) -> Tuple[str, Optional[str]]:
                 except (json.JSONDecodeError, TypeError) as e:
                     logger.debug(f"Could not parse JSON-LD: {e}")
             
-            # Strategy 3: Look for meta description
+            # Strategy 4: Look for meta description
             meta_desc = soup.find('meta', attrs={'name': 'description'})
             if meta_desc and meta_desc.get('content'):
                 meta_content = meta_desc.get('content', '')
@@ -279,7 +335,7 @@ async def extract_text_from_url(url: str) -> Tuple[str, Optional[str]]:
                     text_parts.append(f"Page Description: {meta_content}")
                     logger.info(f"Found meta description: {len(meta_content)} chars")
             
-            # Strategy 4: Fall back to main content areas
+            # Strategy 5: Fall back to main content areas
             if not text_parts:
                 logger.info("No product-specific content found, falling back to main content areas")
                 main_content = soup.find('main') or soup.find('article') or soup.find('body')
