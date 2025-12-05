@@ -417,7 +417,14 @@
         "air_pollution_notes": { "type": "string" },
         "water_pollution_notes": { "type": "string" },
         "soil_pollution_notes": { "type": "string" },
-        "material_toxicity_level": { "type": "string" },
+        "material_toxicity": {
+          "type": "string",
+          "enum": ["non_toxic", "low_toxicity", "moderate_toxicity", "high_toxicity", "unknown"]
+        },
+        "manufacturing_toxicity": {
+          "type": "string",
+          "enum": ["clean", "low_emissions", "moderate_emissions", "high_emissions", "unknown"]
+        },
         "recyclability_percent": { "type": "number" },
         "biodegradation_timeline_years": { "type": "number" },
         "end_of_life_pathways": { "type": "string" },

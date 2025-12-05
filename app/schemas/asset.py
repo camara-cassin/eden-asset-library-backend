@@ -283,7 +283,8 @@ class EnvironmentalImpact(BaseModel):
     air_pollution_notes: Optional[str] = None
     water_pollution_notes: Optional[str] = None
     soil_pollution_notes: Optional[str] = None
-    material_toxicity_level: Optional[str] = None
+    material_toxicity: Optional[str] = None  # non_toxic, low_toxicity, moderate_toxicity, high_toxicity, unknown
+    manufacturing_toxicity: Optional[str] = None  # clean, low_emissions, moderate_emissions, high_emissions, unknown
     recyclability_percent: Optional[float] = None
     biodegradation_timeline_years: Optional[float] = None
     end_of_life_pathways: Optional[str] = None
