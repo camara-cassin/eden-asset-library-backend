@@ -721,8 +721,16 @@ async def ai_extract(
             logger.info(f"Extracted text from {len(processed_files)} documents, skipped {len(skipped_files)}")
             
             # Step 3: Extract text from product URL if provided
+            # Check multiple possible URL fields where the product URL might be stored
             product_page_text = ""
-            external_url = website_url or data.get("basic_information", {}).get("external_documentation_url")
+            basic_info = data.get("basic_information", {})
+            external_url = (
+                website_url or 
+                basic_info.get("external_documentation_url") or
+                basic_info.get("company_website_url") or
+                basic_info.get("product_url")
+            )
+            logger.info(f"Product URL sources - website_url param: {website_url}, external_documentation_url: {basic_info.get('external_documentation_url')}, company_website_url: {basic_info.get('company_website_url')}")
             
             if external_url:
                 logger.info(f"Extracting text from product URL: {external_url}")
@@ -732,8 +740,7 @@ async def ai_extract(
                 else:
                     extraction_response["sources_used"].append(external_url)
             
-            # Step 4: Get short description for context
-            basic_info = data.get("basic_information", {})
+            # Step 4: Get short description for context (basic_info already defined above)
             short_description = basic_info.get("short_summary", "")
             
             # Step 5: Call OpenAI for extraction
