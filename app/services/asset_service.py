@@ -572,7 +572,7 @@ async def ai_extract(
 ) -> Tuple[EdenAsset, dict]:
     """
     AI extraction. When USE_REAL_AI is false, returns realistic stub data.
-    When USE_REAL_AI is true, calls the AI microservice to extract data.
+    When USE_REAL_AI is true, calls OpenAI GPT-4o to extract data from documents and URLs.
     
     Args:
         db: Database session
@@ -585,7 +585,16 @@ async def ai_extract(
     Returns:
         Tuple of (updated asset, extraction response dict)
     """
-    import httpx
+    import logging
+    from app.services.ai_providers import (
+        extract_eden_asset_data,
+        extract_all_document_text,
+        extract_text_from_url,
+        merge_extracted_data,
+        build_field_updates,
+    )
+    
+    logger = logging.getLogger(__name__)
     
     data = asset.data.copy()
     now = datetime.utcnow().isoformat()
@@ -606,8 +615,14 @@ async def ai_extract(
     # Check USE_REAL_AI first, fall back to AI_ENABLED for backward compatibility
     use_real_ai = settings.USE_REAL_AI or settings.AI_ENABLED
     
-    if not use_real_ai:
+    # Also check if OpenAI API key is configured
+    has_openai_key = bool(settings.OPENAI_API_KEY)
+    
+    if not use_real_ai or not has_openai_key:
         # Stub mode - generate realistic stub response
+        if not has_openai_key and use_real_ai:
+            logger.warning("USE_REAL_AI is true but OPENAI_API_KEY is not set, falling back to stub mode")
+        
         extraction_response = _generate_stub_extraction_response(
             data, 
             website_url=website_url,
@@ -625,9 +640,10 @@ async def ai_extract(
         if "sources_used" not in data["ai_assistance"]:
             data["ai_assistance"]["sources_used"] = []
         for source in extraction_response["sources_used"]:
+            source_str = source if isinstance(source, str) else str(source)
             data["ai_assistance"]["sources_used"].append({
-                "source_type": "web_search" if source.startswith("http") else "document",
-                "source_ref": source,
+                "source_type": "web_search" if source_str.startswith("http") else "document",
+                "source_ref": source_str,
                 "notes": "Processed in stub mode"
             })
         
@@ -636,69 +652,128 @@ async def ai_extract(
         data["ai_assistance"]["fields_prefilled"].extend(extraction_response["fields_prefilled"])
         
     else:
-        # Real AI mode - call the AI microservice
+        # Real AI mode - use OpenAI GPT-4o for extraction
         try:
-            source_urls = _collect_source_urls(data, sources, website_url=website_url, use_uploaded_docs=use_uploaded_docs)
-            source_urls.extend(uploaded_file_ids)
+            logger.info(f"Starting AI extraction for asset {asset.asset_id}")
             
-            if not source_urls:
-                data["ai_assistance"]["prefill_status"] = "failed"
-                data["ai_assistance"]["prefill_message"] = "No source URLs provided for extraction"
-                extraction_response["notes_for_reviewer"].append("Extraction failed: no sources provided")
-            else:
-                # Call AI service
-                ai_payload = {
-                    "asset_id": asset.asset_id,
-                    "sources": source_urls,
-                    "current_asset": data
-                }
+            # Step 1: Collect document URLs for text extraction
+            doc_uploads = data.get("documentation_uploads", {})
+            documents = []
+            
+            # Collect all document URLs with their filenames
+            url_fields = [
+                ("technical_spec_sheet_url", "technical_spec_sheet.pdf"),
+                ("product_datasheet_url", "product_datasheet.pdf"),
+                ("build_manual_url", "build_manual.pdf"),
+                ("step_by_step_instructions_url", "instructions.pdf"),
+                ("bom_url", "bom.pdf"),
+            ]
+            
+            for field, default_name in url_fields:
+                url = doc_uploads.get(field)
+                if url:
+                    # Try to extract filename from URL or use default
+                    filename = url.split("/")[-1] if "/" in url else default_name
+                    documents.append({"url": url, "filename": filename})
+            
+            # Collect array URL fields
+            array_fields = [
+                "safety_data_sheets_urls", "certifications_docs_urls", 
+                "patent_docs_urls", "marketing_pdfs_urls", "additional_docs_urls"
+            ]
+            for field in array_fields:
+                urls = doc_uploads.get(field, [])
+                if isinstance(urls, list):
+                    for url in urls:
+                        filename = url.split("/")[-1] if "/" in url else f"{field}.pdf"
+                        documents.append({"url": url, "filename": filename})
+            
+            # Add any uploaded file IDs/URLs
+            for file_id in uploaded_file_ids:
+                if file_id.startswith("http"):
+                    filename = file_id.split("/")[-1] if "/" in file_id else "uploaded_doc.pdf"
+                    documents.append({"url": file_id, "filename": filename})
+            
+            logger.info(f"Found {len(documents)} documents to process")
+            
+            # Step 2: Extract text from all documents
+            doc_text, processed_files, skipped_files = await extract_all_document_text(documents)
+            
+            for filename in processed_files:
+                extraction_response["sources_used"].append(filename)
+            
+            for skipped in skipped_files:
+                extraction_response["notes_for_reviewer"].append(f"Skipped: {skipped}")
+            
+            logger.info(f"Extracted text from {len(processed_files)} documents, skipped {len(skipped_files)}")
+            
+            # Step 3: Extract text from product URL if provided
+            product_page_text = ""
+            external_url = website_url or data.get("basic_information", {}).get("external_documentation_url")
+            
+            if external_url:
+                logger.info(f"Extracting text from product URL: {external_url}")
+                product_page_text, url_error = await extract_text_from_url(external_url)
+                if url_error:
+                    extraction_response["notes_for_reviewer"].append(f"URL extraction issue: {url_error}")
+                else:
+                    extraction_response["sources_used"].append(external_url)
+            
+            # Step 4: Get short description for context
+            basic_info = data.get("basic_information", {})
+            short_description = basic_info.get("short_summary", "")
+            
+            # Step 5: Call OpenAI for extraction
+            if doc_text or product_page_text:
+                logger.info("Calling OpenAI for data extraction")
                 
-                async with httpx.AsyncClient(timeout=60.0) as client:
-                    response = await client.post(
-                        f"{settings.AI_SERVICE_URL}/eden/assets/extract",
-                        json=ai_payload
+                extracted_data = await extract_eden_asset_data(
+                    documentation_text=doc_text,
+                    short_description=short_description,
+                    product_url=external_url,
+                    product_page_text=product_page_text,
+                    current_asset=data,
+                    model=settings.OPENAI_MODEL,
+                )
+                
+                logger.info(f"OpenAI returned data with keys: {list(extracted_data.keys())}")
+                
+                # Step 6: Merge extracted data into asset (only fill empty fields)
+                if extracted_data:
+                    data, fields_updated = merge_extracted_data(data, extracted_data)
+                    
+                    # Build field updates for response
+                    extraction_response["field_updates"] = build_field_updates(
+                        extracted_data, fields_updated, source="openai"
                     )
-                    response.raise_for_status()
-                    ai_response = response.json()
-                
-                # Use the AI response as our extraction_response
-                extraction_response = {
-                    "field_updates": ai_response.get("field_updates", []),
-                    "fields_prefilled": ai_response.get("fields_prefilled", []),
-                    "sources_used": ai_response.get("sources_used", []),
-                    "notes_for_reviewer": ai_response.get("notes_for_reviewer", [])
-                }
-                
-                # Apply field updates
-                if extraction_response["field_updates"]:
-                    data = _apply_stub_field_updates(data, extraction_response["field_updates"])
-                
-                # Update ai_assistance with results
-                if "fields_prefilled" not in data["ai_assistance"]:
-                    data["ai_assistance"]["fields_prefilled"] = []
-                data["ai_assistance"]["fields_prefilled"].extend(extraction_response["fields_prefilled"])
-                
-                if "sources_used" not in data["ai_assistance"]:
-                    data["ai_assistance"]["sources_used"] = []
-                for source in extraction_response["sources_used"]:
-                    data["ai_assistance"]["sources_used"].append({
-                        "source_type": "web_search" if isinstance(source, str) and source.startswith("http") else "document",
-                        "source_ref": source if isinstance(source, str) else str(source),
-                        "notes": "Processed by AI service"
-                    })
+                    extraction_response["fields_prefilled"] = fields_updated
+                    
+                    logger.info(f"Merged {len(fields_updated)} fields from AI extraction")
                 
                 data["ai_assistance"]["prefill_status"] = "complete"
-                data["ai_assistance"]["prefill_message"] = "AI extraction completed successfully"
+                data["ai_assistance"]["prefill_message"] = f"AI extraction completed successfully. Updated {len(extraction_response['fields_prefilled'])} fields."
+            else:
+                data["ai_assistance"]["prefill_status"] = "complete"
+                data["ai_assistance"]["prefill_message"] = "No extractable content found in documents or URLs"
+                extraction_response["notes_for_reviewer"].append("No text content could be extracted from provided sources")
+            
+            # Update ai_assistance with results
+            if "fields_prefilled" not in data["ai_assistance"]:
+                data["ai_assistance"]["fields_prefilled"] = []
+            data["ai_assistance"]["fields_prefilled"].extend(extraction_response["fields_prefilled"])
+            
+            if "sources_used" not in data["ai_assistance"]:
+                data["ai_assistance"]["sources_used"] = []
+            for source in extraction_response["sources_used"]:
+                source_str = source if isinstance(source, str) else str(source)
+                data["ai_assistance"]["sources_used"].append({
+                    "source_type": "web_search" if source_str.startswith("http") else "document",
+                    "source_ref": source_str,
+                    "notes": "Processed by OpenAI GPT-4o"
+                })
                 
-        except httpx.HTTPStatusError as e:
-            data["ai_assistance"]["prefill_status"] = "failed"
-            data["ai_assistance"]["prefill_message"] = f"AI service returned error: {e.response.status_code}"
-            extraction_response["notes_for_reviewer"].append(f"AI service error: {e.response.status_code}")
-        except httpx.RequestError as e:
-            data["ai_assistance"]["prefill_status"] = "failed"
-            data["ai_assistance"]["prefill_message"] = f"Failed to connect to AI service: {str(e)}"
-            extraction_response["notes_for_reviewer"].append(f"Connection error: {str(e)}")
         except Exception as e:
+            logger.error(f"AI extraction failed: {str(e)}", exc_info=True)
             data["ai_assistance"]["prefill_status"] = "failed"
             data["ai_assistance"]["prefill_message"] = f"AI extraction failed: {str(e)}"
             extraction_response["notes_for_reviewer"].append(f"Extraction error: {str(e)}")

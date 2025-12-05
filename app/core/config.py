@@ -14,6 +14,8 @@ class Settings(BaseSettings):
     USE_REAL_AI: bool = False  # Set to True when plugging in actual AI services
     AI_ENABLED: bool = False  # Legacy alias for USE_REAL_AI
     AI_SERVICE_URL: Optional[str] = None
+    OPENAI_API_KEY: Optional[str] = None  # OpenAI API key for AI extraction
+    OPENAI_MODEL: str = "gpt-4o"  # Default model for AI extraction
     
     # JWT Authentication
     JWT_SECRET: str = "your-secret-key-change-in-production"
