@@ -1,6 +1,7 @@
 import ssl
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import declarative_base
+from sqlalchemy.pool import NullPool
 from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 
 from app.core.config import settings
@@ -45,7 +46,16 @@ if needs_ssl:
     ssl_context.verify_mode = ssl.CERT_NONE
     connect_args["ssl"] = ssl_context
 
-engine = create_async_engine(database_url, echo=False, connect_args=connect_args)
+# Use NullPool for serverless/auto-stop environments (Fly.io, Neon)
+# This prevents stale connections when machines wake up after being stopped
+# pool_pre_ping validates connections before use to detect closed connections
+engine = create_async_engine(
+    database_url,
+    echo=False,
+    connect_args=connect_args,
+    poolclass=NullPool,  # No persistent pool - fresh connection per session
+    pool_pre_ping=True,  # Validate connection before using
+)
 async_session_maker = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 Base = declarative_base()
