@@ -123,10 +123,58 @@ class DocumentationUploads(BaseModel):
     additional_docs_urls: Optional[List[str]] = []
 
 
+class DimensionValue(BaseModel):
+    """A dimension value with unit."""
+    value: Optional[float] = None
+    unit: Optional[str] = None  # cm, m, inches, ft
+
+
+class WeightValue(BaseModel):
+    """A weight value with unit."""
+    value: Optional[float] = None
+    unit: Optional[str] = None  # kg, lb
+
+
+class AreaValue(BaseModel):
+    """An area value with unit."""
+    value: Optional[float] = None
+    unit: Optional[str] = None  # m², ft², acres, hectares
+
+
 class Dimensions(BaseModel):
-    length: Optional[float] = None
-    width: Optional[float] = None
-    height: Optional[float] = None
+    """Dimensions with length, width, height and auto-calculated volume."""
+    length: Optional[DimensionValue] = None
+    width: Optional[DimensionValue] = None
+    height: Optional[DimensionValue] = None
+    volume: Optional[float] = None  # Auto-calculated: L x W x H
+
+
+class PackageSize(BaseModel):
+    """Package dimensions for shipping."""
+    length: Optional[DimensionValue] = None
+    width: Optional[DimensionValue] = None
+    height: Optional[DimensionValue] = None
+
+
+class Stackability(BaseModel):
+    """Stackability information."""
+    is_stackable: Optional[bool] = None
+    max_stack_height_units: Optional[int] = None
+    max_load_per_unit: Optional[WeightValue] = None
+
+
+class ModularInterface(BaseModel):
+    """A modular interface entry with types and specification."""
+    interface_types: Optional[List[str]] = []  # Electrical, Plumbing, Data, Mechanical, Fluid, Hydraulic, Pneumatic, Other
+    specification: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class UnitVariantNew(BaseModel):
+    """A unit variant with name, model number, and notes."""
+    variant_name: Optional[str] = None
+    model_number: Optional[str] = None
+    notes: Optional[str] = None
 
 
 class OperatingRange(BaseModel):
@@ -137,6 +185,7 @@ class OperatingRange(BaseModel):
     pressure_notes: Optional[str] = None
 
 
+# Legacy UnitVariant for backwards compatibility
 class UnitVariant(BaseModel):
     unit_name: Optional[str] = None
     unit_of_analysis: Optional[str] = None
@@ -153,7 +202,21 @@ class UnitVariant(BaseModel):
 
 
 class PhysicalConfiguration(BaseModel):
+    """Physical configuration with detailed specs for EDEN.OS integration."""
+    # Legacy field for backwards compatibility
     unit_variants: Optional[List[UnitVariant]] = []
+    
+    # New detailed fields
+    unit_variants_new: Optional[List[UnitVariantNew]] = []
+    dimensions: Optional[Dimensions] = None
+    footprint_area: Optional[AreaValue] = None
+    unit_weight: Optional[WeightValue] = None
+    package_size: Optional[PackageSize] = None
+    package_weight: Optional[WeightValue] = None
+    units_per_package: Optional[int] = None
+    stackability: Optional[Stackability] = None
+    modular_interfaces: Optional[List[ModularInterface]] = []
+    environmental_rating: Optional[str] = None  # Indoor, Outdoor, Marine/Coastal, High-Dust/Industrial, High-Humidity, Explosion-Proof/Hazardous Area, Clean Room, Unknown
 
 
 class PlanConfiguration(BaseModel):
