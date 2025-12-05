@@ -281,6 +281,8 @@ class Economics(BaseModel):
     production_lead_time_days: Optional[float] = None
     production_capacity_per_month: Optional[float] = None
     availability_type: Optional[str] = None  # for_sale, licensed, open_source, proprietary, not_available
+    generates_revenue: Optional[str] = None  # yes, no, maybe
+    estimated_annual_net_profit_usd: Optional[float] = None
 
 
 class Licensing(BaseModel):
