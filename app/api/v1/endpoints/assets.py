@@ -20,6 +20,11 @@ router = APIRouter()
 def format_asset_response(asset) -> dict:
     response = asset.data.copy()
     response["id"] = str(asset.id)
+    # Include metadata fields from database columns
+    response["created_at"] = asset.created_at.isoformat() if asset.created_at else None
+    response["updated_at"] = asset.updated_at.isoformat() if asset.updated_at else None
+    response["created_by"] = asset.created_by
+    response["updated_by"] = asset.updated_by
     return response
 
 
@@ -34,6 +39,11 @@ def format_asset_list_item(asset) -> dict:
         "overview": data.get("overview"),
         "eden_impact_summary": data.get("eden_impact_summary"),
         "deployment": data.get("deployment"),
+        # Include metadata fields for admin view
+        "created_at": asset.created_at.isoformat() if asset.created_at else None,
+        "updated_at": asset.updated_at.isoformat() if asset.updated_at else None,
+        "created_by": asset.created_by,
+        "updated_by": asset.updated_by,
     }
 
 
@@ -130,7 +140,7 @@ async def create_asset(
             basic_info["category"] = categories[0].get("primary")
             input_dict["basic_information"] = basic_info
     
-    asset, errors = await asset_service.create_asset(db, input_dict)
+    asset, errors = await asset_service.create_asset(db, input_dict, user_id=str(current_user.id))
     
     if errors:
         raise HTTPException(
@@ -272,7 +282,7 @@ async def update_asset(
     if "contributor" in update_dict:
         del update_dict["contributor"]
     
-    updated_asset, errors = await asset_service.update_asset(db, asset, update_dict)
+    updated_asset, errors = await asset_service.update_asset(db, asset, update_dict, user_id=str(current_user.id))
     
     if errors:
         raise HTTPException(
@@ -311,7 +321,7 @@ async def delete_asset(
             }
         )
     
-    await asset_service.soft_delete_asset(db, asset)
+    await asset_service.soft_delete_asset(db, asset)  # Note: delete doesn't have current_user, so no user_id tracking
     return None
 
 
@@ -353,7 +363,7 @@ async def submit_asset(
                 }
             )
     
-    updated_asset, errors = await asset_service.submit_for_review(db, asset)
+    updated_asset, errors = await asset_service.submit_for_review(db, asset, user_id=str(current_user.id))
     
     if errors:
         raise HTTPException(
@@ -457,7 +467,7 @@ async def attach_file(
             }
         )
     
-    updated_asset, error = await asset_service.attach_file_url(db, asset, request.target, request.url)
+    updated_asset, error = await asset_service.attach_file_url(db, asset, request.target, request.url, user_id=str(current_user.id))
     
     if error:
         raise HTTPException(
@@ -538,7 +548,8 @@ async def ai_extract(
         db, asset, sources, 
         website_url=website_url, 
         use_uploaded_docs=use_uploaded_docs,
-        uploaded_file_ids=uploaded_file_ids
+        uploaded_file_ids=uploaded_file_ids,
+        user_id=str(current_user.id)
     )
     
     # Convert field_updates to AIFieldUpdate objects

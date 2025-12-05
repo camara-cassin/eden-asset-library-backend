@@ -115,11 +115,17 @@ def build_initial_asset_data(input_data: dict) -> dict:
     return data
 
 
-async def create_asset(db: AsyncSession, input_data: dict) -> Tuple[Optional[EdenAsset], List[str]]:
+async def create_asset(db: AsyncSession, input_data: dict, user_id: Optional[str] = None) -> Tuple[Optional[EdenAsset], List[str]]:
     """
     Create a new asset in draft status.
+    Sets created_by, created_at, updated_by, updated_at to the same values on creation.
     """
     data = build_initial_asset_data(input_data)
+    
+    # Set created_by and updated_by in system_meta
+    if user_id:
+        data["system_meta"]["created_by"] = user_id
+        data["system_meta"]["updated_by"] = user_id
     
     is_valid, errors = validate_relaxed(data)
     if not is_valid:
@@ -130,6 +136,8 @@ async def create_asset(db: AsyncSession, input_data: dict) -> Tuple[Optional[Ede
     asset = EdenAsset(
         asset_id=data["asset_id"],
         data=data,
+        created_by=user_id,
+        updated_by=user_id,
         **scalar_cols
     )
     
@@ -161,9 +169,10 @@ async def get_asset_by_asset_id(db: AsyncSession, asset_id: str) -> Optional[Ede
     return result.scalar_one_or_none()
 
 
-async def update_asset(db: AsyncSession, asset: EdenAsset, updates: dict) -> Tuple[Optional[EdenAsset], List[str]]:
+async def update_asset(db: AsyncSession, asset: EdenAsset, updates: dict, user_id: Optional[str] = None) -> Tuple[Optional[EdenAsset], List[str]]:
     """
     Update asset with partial deep merge.
+    Updates updated_by and updated_at, does not modify created_by or created_at.
     """
     existing_data = asset.data.copy()
     merged_data = deep_merge(existing_data, updates)
@@ -175,6 +184,8 @@ async def update_asset(db: AsyncSession, asset: EdenAsset, updates: dict) -> Tup
     old_version = merged_data["system_meta"].get("version", "v1")
     merged_data["system_meta"]["version"] = increment_version(old_version)
     merged_data["system_meta"]["updated_at"] = now
+    if user_id:
+        merged_data["system_meta"]["updated_by"] = user_id
     
     is_valid, errors = validate_relaxed(merged_data)
     if not is_valid:
@@ -193,6 +204,8 @@ async def update_asset(db: AsyncSession, asset: EdenAsset, updates: dict) -> Tup
     asset.creator_name = scalar_cols["creator_name"]
     asset.contributor_id = scalar_cols["contributor_id"]
     asset.updated_at = datetime.utcnow()
+    if user_id:
+        asset.updated_by = user_id
     
     await db.commit()
     await db.refresh(asset)
@@ -200,7 +213,7 @@ async def update_asset(db: AsyncSession, asset: EdenAsset, updates: dict) -> Tup
     return asset, []
 
 
-async def soft_delete_asset(db: AsyncSession, asset: EdenAsset) -> EdenAsset:
+async def soft_delete_asset(db: AsyncSession, asset: EdenAsset, user_id: Optional[str] = None) -> EdenAsset:
     """
     Soft delete asset by setting status to deprecated.
     """
@@ -209,11 +222,15 @@ async def soft_delete_asset(db: AsyncSession, asset: EdenAsset) -> EdenAsset:
         data["system_meta"] = {}
     data["system_meta"]["status"] = "deprecated"
     data["system_meta"]["updated_at"] = datetime.utcnow().isoformat()
+    if user_id:
+        data["system_meta"]["updated_by"] = user_id
     
     asset.data = data
     flag_modified(asset, "data")
     asset.status = "deprecated"
     asset.updated_at = datetime.utcnow()
+    if user_id:
+        asset.updated_by = user_id
     
     await db.commit()
     await db.refresh(asset)
@@ -221,7 +238,7 @@ async def soft_delete_asset(db: AsyncSession, asset: EdenAsset) -> EdenAsset:
     return asset
 
 
-async def submit_for_review(db: AsyncSession, asset: EdenAsset) -> Tuple[Optional[EdenAsset], List[str]]:
+async def submit_for_review(db: AsyncSession, asset: EdenAsset, user_id: Optional[str] = None) -> Tuple[Optional[EdenAsset], List[str]]:
     """
     Submit asset for review with strict validation.
     """
@@ -240,12 +257,16 @@ async def submit_for_review(db: AsyncSession, asset: EdenAsset) -> Tuple[Optiona
         data["system_meta"] = {}
     data["system_meta"]["status"] = "under_review"
     data["system_meta"]["updated_at"] = now
+    if user_id:
+        data["system_meta"]["updated_by"] = user_id
     
     asset.data = data
     flag_modified(asset, "data")
     asset.status = "under_review"
     asset.submission_status = "pending_review"
     asset.updated_at = datetime.utcnow()
+    if user_id:
+        asset.updated_by = user_id
     
     await db.commit()
     await db.refresh(asset)
@@ -279,6 +300,8 @@ async def approve_asset(db: AsyncSession, asset: EdenAsset, reviewer_id: Optiona
     asset.status = "approved"
     asset.submission_status = "approved"
     asset.updated_at = datetime.utcnow()
+    if reviewer_id:
+        asset.updated_by = reviewer_id
     
     await db.commit()
     await db.refresh(asset)
@@ -312,6 +335,8 @@ async def reject_asset(db: AsyncSession, asset: EdenAsset, reviewer_id: Optional
     asset.status = "draft"
     asset.submission_status = "changes_requested"
     asset.updated_at = datetime.utcnow()
+    if reviewer_id:
+        asset.updated_by = reviewer_id
     
     await db.commit()
     await db.refresh(asset)
@@ -319,7 +344,7 @@ async def reject_asset(db: AsyncSession, asset: EdenAsset, reviewer_id: Optional
     return asset
 
 
-async def attach_file_url(db: AsyncSession, asset: EdenAsset, target: str, url: str) -> Tuple[Optional[EdenAsset], Optional[str]]:
+async def attach_file_url(db: AsyncSession, asset: EdenAsset, target: str, url: str, user_id: Optional[str] = None) -> Tuple[Optional[EdenAsset], Optional[str]]:
     """
     Attach a file URL to the asset's documentation_uploads.
     """
@@ -339,10 +364,14 @@ async def attach_file_url(db: AsyncSession, asset: EdenAsset, target: str, url: 
     if "system_meta" not in data:
         data["system_meta"] = {}
     data["system_meta"]["updated_at"] = now
+    if user_id:
+        data["system_meta"]["updated_by"] = user_id
     
     asset.data = data
     flag_modified(asset, "data")
     asset.updated_at = datetime.utcnow()
+    if user_id:
+        asset.updated_by = user_id
     
     await db.commit()
     await db.refresh(asset)
@@ -568,7 +597,8 @@ async def ai_extract(
     sources: dict,
     website_url: Optional[str] = None,
     use_uploaded_docs: bool = True,
-    uploaded_file_ids: List[str] = []
+    uploaded_file_ids: List[str] = [],
+    user_id: Optional[str] = None
 ) -> Tuple[EdenAsset, dict]:
     """
     AI extraction. When USE_REAL_AI is false, returns realistic stub data.
@@ -801,10 +831,14 @@ async def ai_extract(
     if "system_meta" not in data:
         data["system_meta"] = {}
     data["system_meta"]["updated_at"] = now
+    if user_id:
+        data["system_meta"]["updated_by"] = user_id
     
     asset.data = data
     flag_modified(asset, "data")
     asset.updated_at = datetime.utcnow()
+    if user_id:
+        asset.updated_by = user_id
     
     await db.commit()
     await db.refresh(asset)

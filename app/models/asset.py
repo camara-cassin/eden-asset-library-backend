@@ -34,3 +34,5 @@ class EdenAsset(Base):
     data = Column(JSONBType, nullable=False)
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    created_by = Column(String(255), nullable=True)  # User ID or email of creator
+    updated_by = Column(String(255), nullable=True)  # User ID or email of last updater
