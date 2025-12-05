@@ -596,6 +596,17 @@ async def ai_extract(
     
     logger = logging.getLogger(__name__)
     
+    # Debug logging for environment variables
+    import os
+    logger.info(f"=== AI EXTRACT DEBUG ===")
+    logger.info(f"Asset ID: {asset.asset_id}")
+    logger.info(f"settings.USE_REAL_AI = {settings.USE_REAL_AI} (type: {type(settings.USE_REAL_AI)})")
+    logger.info(f"settings.AI_ENABLED = {settings.AI_ENABLED} (type: {type(settings.AI_ENABLED)})")
+    logger.info(f"settings.OPENAI_API_KEY is set: {bool(settings.OPENAI_API_KEY)}")
+    logger.info(f"settings.OPENAI_MODEL = {settings.OPENAI_MODEL}")
+    logger.info(f"ENV USE_REAL_AI = {os.environ.get('USE_REAL_AI', 'NOT SET')}")
+    logger.info(f"ENV OPENAI_API_KEY is set: {bool(os.environ.get('OPENAI_API_KEY'))}")
+    
     data = asset.data.copy()
     now = datetime.utcnow().isoformat()
     
@@ -617,6 +628,8 @@ async def ai_extract(
     
     # Also check if OpenAI API key is configured
     has_openai_key = bool(settings.OPENAI_API_KEY)
+    
+    logger.info(f"use_real_ai = {use_real_ai}, has_openai_key = {has_openai_key}")
     
     if not use_real_ai or not has_openai_key:
         # Stub mode - generate realistic stub response
