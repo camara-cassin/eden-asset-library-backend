@@ -28,6 +28,14 @@ class Settings(BaseSettings):
     UPLOAD_DIR: str = "uploads"
     MAX_UPLOAD_SIZE_MB: int = 50
     
+    # R2/S3 Storage (for production)
+    USE_R2_STORAGE: bool = False  # Set to True to use R2 instead of local storage
+    R2_ACCOUNT_ID: Optional[str] = None
+    R2_ACCESS_KEY_ID: Optional[str] = None
+    R2_SECRET_ACCESS_KEY: Optional[str] = None
+    R2_BUCKET_NAME: str = "eden-assets"
+    R2_PUBLIC_URL: Optional[str] = None  # Optional custom domain for public access
+    
     class Config:
         env_file = ".env"
         case_sensitive = True

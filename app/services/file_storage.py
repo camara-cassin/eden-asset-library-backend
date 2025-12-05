@@ -1,17 +1,43 @@
 """
 File storage service for handling document uploads.
 
-This implementation uses local disk storage. For production on Fly.io,
-this should be replaced with S3/R2 storage as local files are ephemeral.
+Supports both local disk storage (development) and Cloudflare R2 storage (production).
+Set USE_R2_STORAGE=True and configure R2 credentials to use R2 storage.
 """
 import os
 import uuid
 import aiofiles
+import boto3
+from botocore.config import Config as BotoConfig
 from pathlib import Path
 from typing import Optional
 from fastapi import UploadFile
 
 from app.core.config import settings
+
+
+# Initialize R2 client if configured
+_r2_client = None
+
+def get_r2_client():
+    """Get or create the R2 S3 client."""
+    global _r2_client
+    if _r2_client is None and settings.USE_R2_STORAGE:
+        if not all([settings.R2_ACCOUNT_ID, settings.R2_ACCESS_KEY_ID, settings.R2_SECRET_ACCESS_KEY]):
+            raise ValueError("R2 storage is enabled but credentials are not configured")
+        
+        _r2_client = boto3.client(
+            's3',
+            endpoint_url=f"https://{settings.R2_ACCOUNT_ID}.r2.cloudflarestorage.com",
+            aws_access_key_id=settings.R2_ACCESS_KEY_ID,
+            aws_secret_access_key=settings.R2_SECRET_ACCESS_KEY,
+            config=BotoConfig(
+                signature_version='s3v4',
+                retries={'max_attempts': 3, 'mode': 'standard'}
+            ),
+            region_name='auto'
+        )
+    return _r2_client
 
 
 # Allowed file extensions by category
@@ -83,7 +109,7 @@ async def save_upload(
     doc_type: str = "general"
 ) -> tuple[Optional[str], Optional[str]]:
     """
-    Save an uploaded file to local storage.
+    Save an uploaded file to storage (local or R2 depending on configuration).
     
     Args:
         asset_id: The asset ID to associate the file with
@@ -107,21 +133,76 @@ async def save_upload(
     # Generate unique filename
     unique_filename = generate_unique_filename(upload.filename)
     
-    # Get asset directory
-    asset_dir = get_asset_upload_dir(asset_id)
-    file_path = asset_dir / unique_filename
-    
-    # Save file
+    # Read file content
     try:
         content = await upload.read()
         if len(content) > max_size:
             return None, f"File too large. Maximum size is {settings.MAX_UPLOAD_SIZE_MB}MB"
+    except Exception as e:
+        return None, f"Failed to read file: {str(e)}"
+    
+    # Use R2 storage if configured, otherwise local storage
+    if settings.USE_R2_STORAGE:
+        return await _save_to_r2(asset_id, unique_filename, content, upload.content_type)
+    else:
+        return await _save_to_local(asset_id, unique_filename, content)
+
+
+async def _save_to_r2(
+    asset_id: str,
+    filename: str,
+    content: bytes,
+    content_type: Optional[str] = None
+) -> tuple[Optional[str], Optional[str]]:
+    """Save file to Cloudflare R2 storage."""
+    try:
+        client = get_r2_client()
+        if client is None:
+            return None, "R2 storage is not configured"
+        
+        # S3 key: assets/{asset_id}/{filename}
+        s3_key = f"assets/{asset_id}/{filename}"
+        
+        # Upload to R2
+        extra_args = {}
+        if content_type:
+            extra_args['ContentType'] = content_type
+        
+        client.put_object(
+            Bucket=settings.R2_BUCKET_NAME,
+            Key=s3_key,
+            Body=content,
+            **extra_args
+        )
+        
+        # Generate public URL
+        if settings.R2_PUBLIC_URL:
+            file_url = f"{settings.R2_PUBLIC_URL}/{s3_key}"
+        else:
+            # Use R2.dev public URL format
+            file_url = f"https://{settings.R2_BUCKET_NAME}.{settings.R2_ACCOUNT_ID}.r2.dev/{s3_key}"
+        
+        return file_url, None
+        
+    except Exception as e:
+        return None, f"Failed to upload to R2: {str(e)}"
+
+
+async def _save_to_local(
+    asset_id: str,
+    filename: str,
+    content: bytes
+) -> tuple[Optional[str], Optional[str]]:
+    """Save file to local storage."""
+    try:
+        asset_dir = get_asset_upload_dir(asset_id)
+        file_path = asset_dir / filename
         
         async with aiofiles.open(file_path, "wb") as f:
             await f.write(content)
         
         # Return the URL path (relative to static mount)
-        file_url = f"/files/{asset_id}/{unique_filename}"
+        file_url = f"/files/{asset_id}/{filename}"
         return file_url, None
         
     except Exception as e:
@@ -129,7 +210,29 @@ async def save_upload(
 
 
 async def delete_file(asset_id: str, filename: str) -> bool:
-    """Delete a file from storage."""
+    """Delete a file from storage (local or R2 depending on configuration)."""
+    if settings.USE_R2_STORAGE:
+        return await _delete_from_r2(asset_id, filename)
+    else:
+        return await _delete_from_local(asset_id, filename)
+
+
+async def _delete_from_r2(asset_id: str, filename: str) -> bool:
+    """Delete a file from R2 storage."""
+    try:
+        client = get_r2_client()
+        if client is None:
+            return False
+        
+        s3_key = f"assets/{asset_id}/{filename}"
+        client.delete_object(Bucket=settings.R2_BUCKET_NAME, Key=s3_key)
+        return True
+    except Exception:
+        return False
+
+
+async def _delete_from_local(asset_id: str, filename: str) -> bool:
+    """Delete a file from local storage."""
     try:
         file_path = get_asset_upload_dir(asset_id) / filename
         if file_path.exists():
