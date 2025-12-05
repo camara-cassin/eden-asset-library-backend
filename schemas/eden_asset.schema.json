@@ -58,6 +58,11 @@
           "type": "array",
           "items": { "type": "string" },
           "description": "List of field paths that AI populated or updated"
+        },
+        "issues": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Warnings or issues detected during AI extraction (e.g., price mismatches)"
         }
       }
     },

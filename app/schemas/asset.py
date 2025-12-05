@@ -16,6 +16,7 @@ class AIAssistance(BaseModel):
     last_run_at: Optional[datetime] = None
     sources_used: Optional[List[SourceUsed]] = []
     fields_prefilled: Optional[List[str]] = []
+    issues: Optional[List[str]] = []  # Warnings/issues detected during extraction (e.g., price mismatches)
 
 
 class SystemMeta(BaseModel):

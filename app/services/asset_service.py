@@ -799,6 +799,37 @@ async def ai_extract(
                     extraction_response["fields_prefilled"] = fields_updated
                     
                     logger.info(f"Merged {len(fields_updated)} fields from AI extraction")
+                    
+                    # Step 7: Price mismatch detection
+                    # If user has a retail_price and AI found a different price, add warning
+                    if "issues" not in data["ai_assistance"]:
+                        data["ai_assistance"]["issues"] = []
+                    
+                    existing_econ = data.get("economics", {})
+                    extracted_econ = extracted_data.get("economics", {})
+                    
+                    existing_price = existing_econ.get("retail_price")
+                    extracted_price = extracted_econ.get("retail_price")
+                    
+                    if existing_price and extracted_price:
+                        try:
+                            existing_price_num = float(existing_price)
+                            extracted_price_num = float(extracted_price)
+                            
+                            if existing_price_num > 0:
+                                price_diff_pct = abs(extracted_price_num - existing_price_num) / existing_price_num * 100
+                                
+                                if price_diff_pct > 25:
+                                    issue_msg = (
+                                        f"Price mismatch detected: User entered ${existing_price_num:.2f}, "
+                                        f"but documentation shows ${extracted_price_num:.2f} "
+                                        f"({price_diff_pct:.1f}% difference). Please verify the correct price."
+                                    )
+                                    data["ai_assistance"]["issues"].append(issue_msg)
+                                    extraction_response["notes_for_reviewer"].append(issue_msg)
+                                    logger.warning(f"Price mismatch for asset: {issue_msg}")
+                        except (ValueError, TypeError) as e:
+                            logger.debug(f"Could not compare prices: {e}")
                 
                 data["ai_assistance"]["prefill_status"] = "complete"
                 data["ai_assistance"]["prefill_message"] = f"AI extraction completed successfully. Updated {len(extraction_response['fields_prefilled'])} fields."
