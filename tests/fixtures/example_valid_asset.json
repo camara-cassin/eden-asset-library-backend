@@ -102,10 +102,10 @@
     "economics": {
       "retail_price": 2500.00,
       "wholesale_price": 1800.00,
-      "minimum_order_quantity": 10,
+      "minimum_wholesale_quantity": 10,
       "production_lead_time_days": 30,
       "production_capacity_per_month": 500,
-      "plan_access_type": "none"
+      "availability_type": "for_sale"
     },
     "manufacturing_and_supply_chain": {
       "manufacturing_locations": [
@@ -275,7 +275,7 @@
     },
     "economics": {
       "retail_price": 0,
-      "plan_access_type": "free"
+      "availability_type": "open_source"
     },
     "licensing": {
       "license_type": "Creative Commons",
@@ -363,7 +363,7 @@
     "economics": {
       "retail_price": 800.00,
       "wholesale_price": 600.00,
-      "plan_access_type": "fixed_price"
+      "availability_type": "for_sale"
     },
     "licensing": {
       "license_type": "Proprietary with open installation guide",

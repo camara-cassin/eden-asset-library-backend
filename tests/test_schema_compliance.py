@@ -122,13 +122,13 @@ class TestInvalidAssets:
         errors = list(validator.iter_errors(invalid_asset))
         assert len(errors) > 0, "Invalid submission_status should be rejected"
 
-    def test_invalid_plan_access_type_rejected(self, validator):
+    def test_invalid_availability_type_rejected(self, validator):
         invalid_asset = {
             "asset_type": "plan",
-            "economics": {"plan_access_type": "invalid_access"}
+            "economics": {"availability_type": "invalid_access"}
         }
         errors = list(validator.iter_errors(invalid_asset))
-        assert len(errors) > 0, "Invalid plan_access_type should be rejected"
+        assert len(errors) > 0, "Invalid availability_type should be rejected"
 
     def test_invalid_settlement_method_rejected(self, validator):
         invalid_asset = {

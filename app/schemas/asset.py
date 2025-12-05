@@ -196,10 +196,10 @@ class FunctionalIO(BaseModel):
 class Economics(BaseModel):
     retail_price: Optional[float] = None
     wholesale_price: Optional[float] = None
-    minimum_order_quantity: Optional[float] = None
+    minimum_wholesale_quantity: Optional[float] = None
     production_lead_time_days: Optional[float] = None
     production_capacity_per_month: Optional[float] = None
-    plan_access_type: Optional[str] = None
+    availability_type: Optional[str] = None  # for_sale, licensed, open_source, proprietary, not_available
 
 
 class Licensing(BaseModel):

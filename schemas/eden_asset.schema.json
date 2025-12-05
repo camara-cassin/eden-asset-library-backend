@@ -284,19 +284,17 @@
       "properties": {
         "retail_price": { "type": "number" },
         "wholesale_price": { "type": "number" },
-        "minimum_order_quantity": { "type": "number" },
+        "minimum_wholesale_quantity": { "type": "number" },
         "production_lead_time_days": { "type": "number" },
         "production_capacity_per_month": { "type": "number" },
-        "plan_access_type": {
+        "availability_type": {
           "type": "string",
           "enum": [
-            "free",
-            "donation",
-            "pay_what_you_want",
-            "fixed_price",
-            "subscription",
-            "token_gated",
-            "none"
+            "for_sale",
+            "licensed",
+            "open_source",
+            "proprietary",
+            "not_available"
           ]
         }
       }
