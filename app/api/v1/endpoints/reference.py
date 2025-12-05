@@ -33,6 +33,7 @@ CATEGORY_HIERARCHY: Dict[str, List[str]] = {
         "Water Filtration and Purification",
         "Greywater and Blackwater Systems",
         "Irrigation Systems",
+        "Water Pump",
         "Air Quality and Ventilation",
         "Climate Control Systems",
         "Humidity Management",
