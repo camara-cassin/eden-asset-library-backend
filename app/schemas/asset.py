@@ -80,8 +80,25 @@ class Contributor(BaseModel):
     agreement_document_url: Optional[str] = None
 
 
+class AssetImage(BaseModel):
+    url: str
+    caption: Optional[str] = None
+    is_primary: Optional[bool] = False
+
+
+class BimModel(BaseModel):
+    url: str
+    format: Optional[str] = None  # IFC, RVT, OBJ, STL, glTF, USDZ, Other
+    source_software: Optional[str] = None
+
+
+class DigitalAssets(BaseModel):
+    bim_models: Optional[List["BimModel"]] = []
+
+
 class Overview(BaseModel):
     photos: Optional[List[str]] = []
+    images: Optional[List[AssetImage]] = []
     key_features: Optional[List[str]] = []
     intended_use_cases: Optional[List[str]] = []
     asset_type_description: Optional[str] = None
@@ -401,6 +418,7 @@ class AssetCreate(BaseModel):
     simulation: Optional[Simulation] = None
     documentation_summary: Optional[DocumentationSummary] = None
     user_feedback: Optional[UserFeedback] = None
+    digital_assets: Optional[DigitalAssets] = None
 
     class Config:
         extra = "allow"
@@ -431,6 +449,7 @@ class AssetUpdate(BaseModel):
     simulation: Optional[dict] = None
     documentation_summary: Optional[dict] = None
     user_feedback: Optional[dict] = None
+    digital_assets: Optional[dict] = None
 
     class Config:
         extra = "allow"

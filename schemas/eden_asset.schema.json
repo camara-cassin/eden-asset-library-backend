@@ -149,7 +149,20 @@
         "photos": {
           "type": "array",
           "items": { "type": "string" },
-          "description": "URLs or file IDs"
+          "description": "URLs or file IDs (legacy)"
+        },
+        "images": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "url": { "type": "string" },
+              "caption": { "type": "string" },
+              "is_primary": { "type": "boolean" }
+            },
+            "required": ["url"]
+          },
+          "description": "Asset images with metadata"
         },
         "key_features": {
           "type": "array",
@@ -208,6 +221,30 @@
         "additional_docs_urls": {
           "type": "array",
           "items": { "type": "string" }
+        }
+      }
+    },
+
+    "digital_assets": {
+      "type": "object",
+      "description": "3D models, BIM files, and other digital assets",
+      "properties": {
+        "bim_models": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "url": { "type": "string", "description": "URL to the 3D/BIM file" },
+              "format": { 
+                "type": "string",
+                "enum": ["IFC", "RVT", "OBJ", "STL", "glTF", "USDZ", "Other"],
+                "description": "File format"
+              },
+              "source_software": { "type": "string", "description": "Software used to create the file" }
+            },
+            "required": ["url"]
+          },
+          "description": "3D and BIM model files"
         }
       }
     },
